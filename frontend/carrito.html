@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carrito | Allmate Motors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+        <span class="brand-copy">
+          <span class="brand-title">Allmate Motors</span>
+          <span class="brand-subtitle">Carrito</span>
+        </span>
+      </a>
+      <button class="mobile-toggle" onclick="toggleMobileMenu()">Menú</button>
+      <nav class="nav-links" id="mobile-menu">
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="contacto.html">Contacto</a>
+        <a class="nav-cart active" href="carrito.html">🛒 <span data-cart-count>0</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section" style="padding-top:48px;">
+    <div class="container checkout-layout">
+      <div class="checkout-main">
+        <span class="badge">Carrito</span>
+        <h1 class="section-title">Tus modelos seleccionados</h1>
+        <p class="section-lead">El link Webpay general quedó conectado. Cuando quieras pasar a cobro por producto o checkout transaccional, el backend ya trae base para escalar.</p>
+        <div id="cart-items" class="summary-list"></div>
+      </div>
+
+      <aside class="checkout-side">
+        <div class="checkout-card" style="padding:24px;">
+          <h3 style="margin-top:0;">Resumen</h3>
+          <div class="summary-list">
+            <div class="summary-row"><span>Productos</span><strong id="summary-count">0</strong></div>
+            <div class="summary-row"><span>Subtotal</span><strong id="summary-subtotal">$0</strong></div>
+            <div class="summary-row summary-total"><span>Total estimado</span><strong id="summary-total">$0</strong></div>
+          </div>
+          <p class="checkout-note" id="payment-note"></p>
+          <div style="display:grid; gap:12px; margin-top:18px;">
+            <a class="btn btn-block" id="general-payment-link" href="#" target="_blank" rel="noopener">Pagar con Webpay</a>
+            <a class="btn btn-dark btn-block" id="checkout-whatsapp" href="#" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a>
+          </div>
+        </div>
+
+        <div class="checkout-card" style="padding:24px;">
+          <h3 style="margin-top:0;">Datos del comprador</h3>
+          <form id="checkout-form" class="form-grid">
+            <div class="field full"><label>Nombre</label><input id="customer_name" placeholder="Tu nombre"></div>
+            <div class="field full"><label>Email</label><input id="customer_email" type="email" placeholder="tu@email.com"></div>
+            <div class="field full"><label>Teléfono</label><input id="customer_phone" placeholder="+56 9 ..."></div>
+          </form>
+          <p class="helper-text">Estos datos se usan para enviarte el detalle del pedido y acelerar el contacto.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <script src="js/site-config.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/carrito.js"></script>
+</body>
+</html>

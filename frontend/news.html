@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News | Allmate Motors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+        <span class="brand-copy">
+          <span class="brand-title">Allmate Motors</span>
+          <span class="brand-subtitle">News</span>
+        </span>
+      </a>
+      <button class="mobile-toggle" onclick="toggleMobileMenu()">Menú</button>
+      <nav class="nav-links" id="mobile-menu">
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a class="active" href="news.html">News</a>
+        <a href="contacto.html">Contacto</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section" style="padding-top:48px;">
+    <div class="container">
+      <span class="badge">News / blog</span>
+      <h1 class="section-title">Competencias, novedades y mundo rider</h1>
+      <p class="section-lead">La estructura está lista. Cuando publiques desde el panel admin, las noticias aparecerán aquí y también en la portada.</p>
+      <div id="news-list" class="news-grid"></div>
+    </div>
+  </section>
+
+  <script src="js/site-config.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/news.js"></script>
+</body>
+</html>

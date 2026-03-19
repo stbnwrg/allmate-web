@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contacto Allmate Motors | Distribuidor KAYO en Coronel, Biobío</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+        <span class="brand-copy">
+          <span class="brand-title">Allmate Motors</span>
+          <span class="brand-subtitle">Contacto</span>
+        </span>
+      </a>
+      <button class="mobile-toggle" onclick="toggleMobileMenu()">Menú</button>
+      <nav class="nav-links" id="mobile-menu">
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="news.html">News</a>
+        <a class="active" href="contacto.html">Contacto</a>
+        <a class="nav-cart" href="carrito.html">🛒 <span data-cart-count>0</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section" style="padding-top:48px;">
+    <div class="container contact-grid">
+      <div class="about-copy">
+        <span class="badge">Hablemos</span>
+        <h1 class="section-title">Atención directa, sin laberintos.</h1>
+        <p class="section-lead">El formulario envía correo, guarda el lead en base de datos y además deja visibles tus canales principales de contacto.</p>
+        <div class="info-stack">
+          <div class="info-row"><div><small>WhatsApp</small><strong id="contact-whatsapp">-</strong></div><a class="btn btn-ghost" id="wa-link" href="#" target="_blank" rel="noopener">Escribir ahora</a></div>
+          <div class="info-row"><div><small>Correo</small><strong id="contact-email">-</strong></div><a class="btn btn-ghost" id="email-link" href="#">Enviar correo</a></div>
+          <div class="info-row"><div><small>Dirección</small><strong id="contact-address">-</strong></div><a class="btn btn-ghost" id="map-link" href="#" target="_blank" rel="noopener">Ver mapa</a></div>
+          <div class="info-row"><div><small>Atención</small><strong id="contact-hours">-</strong></div><a class="btn btn-ghost" id="footer-instagram" href="#" target="_blank" rel="noopener">Instagram</a></div>
+        </div>
+      </div>
+
+      <div class="contact-panel" style="padding:24px;">
+        <div id="contact-alert" class="alert"></div>
+        <form id="contact-form" class="form-grid">
+          <div class="field"><label>Nombre</label><input id="name" required></div>
+          <div class="field"><label>Email</label><input id="email" type="email" required></div>
+          <div class="field"><label>Teléfono</label><input id="phone"></div>
+          <div class="field"><label>Asunto</label><input id="subject" value="Consulta web Allmate"></div>
+          <div class="field full"><label>Mensaje</label><textarea id="message" required placeholder="Cuéntanos qué modelo te interesa o qué necesitas."></textarea></div>
+          <div class="field full"><button class="btn btn-block" type="submit">Enviar consulta</button></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-light">
+    <div class="container two-col">
+      <div class="location-text">
+        <span class="badge">Ubicación</span>
+        <h2 class="section-title">Corcovado #991, Coronel</h2>
+        <p class="section-lead">La web quedó conectada a tu punto en mapas para que el cliente se ubique al tiro y no termine en un taller de bicicletas por error.</p>
+      </div>
+      <div class="location-card location-map">
+        <iframe id="map-embed" src="" loading="lazy" title="Ubicación Allmate"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <script src="js/site-config.js"></script>
+  <script src="js/main.js"></script>
+  <script>
+    document.getElementById('contact-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        subject: document.getElementById('subject').value,
+        message: document.getElementById('message').value
+      };
+
+      const res = await fetch('/api/contacto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const alertBox = document.getElementById('contact-alert');
+      alertBox.className = `alert show ${res.ok ? 'success' : 'error'}`;
+      alertBox.textContent = res.ok ? 'Mensaje enviado correctamente.' : (data.message || 'No se pudo enviar el mensaje.');
+      if (res.ok) e.target.reset();
+    });
+  </script>
+</body>
+</html>

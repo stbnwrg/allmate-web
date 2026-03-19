@@ -1,0 +1,3 @@
+Proveedor: Webpay
+Modo: Pago total
+Link general: https://www.webpay.cl/form-pay/204308

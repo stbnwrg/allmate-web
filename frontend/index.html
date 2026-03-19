@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Distribuidor KAYO en Biobío | Motos Enduro, Pit Bike y Mini | Allmate Motors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+        <span class="brand-copy">
+          <span class="brand-title">Allmate Motors</span>
+          <span class="brand-subtitle">Distribuidor oficial KAYO</span>
+        </span>
+      </a>
+      <button class="mobile-toggle" onclick="toggleMobileMenu()">Menú</button>
+      <nav class="nav-links" id="mobile-menu">
+        <a class="active" href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a href="news.html">News</a>
+        <a href="contacto.html">Contacto</a>
+        <a href="admin.html">Admin</a>
+        <a class="nav-cart" href="carrito.html">🛒 <span data-cart-count>0</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-slides" id="hero-slides"></div>
+    <div class="hero-overlay"></div>
+
+    <div class="container hero-content">
+      <span class="badge hero-kicker">Power and trust</span>
+      <h1 id="hero-title">Potencia real. Control total.</h1>
+      <p id="hero-subtitle">Distribuidor oficial de Kayo en la región del Biobío. Catálogo, atención directa y una presencia digital con ADN off-road.</p>
+      <div class="hero-actions">
+        <a class="btn" id="hero-cta" href="productos.html">Ver catálogo</a>
+        <a class="btn btn-dark" id="hero-whatsapp" href="contacto.html">Hablar con Allmate</a>
+      </div>
+    </div>
+
+    <div class="hero-strip">
+      <div class="container hero-strip-grid">
+        <div class="strip-item"><div class="strip-icon">🏁</div><div><strong>Catálogo ordenado</strong><span>Pit bike, enduro e iniciación</span></div></div>
+        <div class="strip-item"><div class="strip-icon">⚙️</div><div><strong>Ficha técnica</strong><span>Datos clave y bloque expandible</span></div></div>
+        <div class="strip-item"><div class="strip-icon">💬</div><div><strong>Contacto directo</strong><span>WhatsApp, correo y formulario</span></div></div>
+        <div class="strip-item"><div class="strip-icon">💳</div><div><strong>Pago Webpay</strong><span>Link general editable y checkout escalable</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <span class="badge">Categorías</span>
+      <h2 class="section-title">Modelo visual inspirado en KAYO, aterrizado a Allmate.</h2>
+      <p class="section-lead">La portada separa las familias de producto para que el visitante entienda rápido qué vende Allmate y hacia dónde debe avanzar.</p>
+      <div class="kayo-grid">
+        <article class="category-card">
+          <img src="images/hero/hero-4.jpeg" alt="Dirt bikes Allmate">
+          <div class="content">
+            <span class="status disponible">Dirt Bike / Enduro</span>
+            <h3>Enduro y nivel medio</h3>
+            <p>Modelos para aprendizaje serio, trail y salto al siguiente escalón del off-road.</p>
+            <a class="btn" href="productos.html?cat=Enduro">Ver modelos</a>
+          </div>
+        </article>
+        <article class="category-card">
+          <img src="images/hero/hero-5.jpeg" alt="Pit bikes Allmate">
+          <div class="content">
+            <span class="status consultar">Pit Bike</span>
+            <h3>Iniciación y progresión</h3>
+            <p>Motos compactas para riders jóvenes y quienes quieren entrar al mundo KAYO.</p>
+            <a class="btn" href="productos.html?cat=Pit Bike">Ver modelos</a>
+          </div>
+        </article>
+        <article class="category-card">
+          <img src="images/hero/hero-6.jpeg" alt="Comunidad Allmate">
+          <div class="content">
+            <span class="status disponible">Comunidad rider</span>
+            <h3>Marca con actitud</h3>
+            <p>Competencia, contenido, noticias y espacio para crecer con campañas y lanzamientos.</p>
+            <a class="btn" href="news.html">Ver estructura news</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-light">
+    <div class="container about-layout">
+      <div class="about-copy">
+        <span class="badge">Quiénes somos</span>
+        <h2 class="section-title">Allmate no vende humo, vende motos con carácter.</h2>
+        <p class="section-lead">Distribuidor oficial de Kayo en la región del Biobío. La propuesta mezcla estética agresiva, atención directa y una vitrina pensada para crecer con catálogo, noticias, campañas y operación comercial.</p>
+        <div class="about-points">
+          <div class="about-point"><div class="icon-dot">01</div><div><strong>Foco comercial</strong><br>Catálogo ordenado, fichas limpias, CTA visibles y espacio para pagar o cotizar sin fricción.</div></div>
+          <div class="about-point"><div class="icon-dot">02</div><div><strong>Estética off-road</strong><br>Alto contraste, color de marca y tratamiento visual alineado al manual Allmate.</div></div>
+          <div class="about-point"><div class="icon-dot">03</div><div><strong>Panel admin</strong><br>Los productos, el hero y las noticias se administran desde backoffice, no editando HTML como en 2009.</div></div>
+        </div>
+      </div>
+      <div class="about-card about-visual">
+        <img src="images/branding/logo-secundario.jpeg" alt="Identidad visual Allmate">
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-white">
+    <div class="container">
+      <span class="badge">Modelos disponibles</span>
+      <h2 class="section-title">Catálogo inicial precargado</h2>
+      <p class="section-lead">Se dejaron cargados los modelos que compartiste. Puedes completar o corregir datos y subir sus fotos desde el panel de administración.</p>
+      <div id="featured-products" class="products-grid"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container two-col">
+      <div class="location-text">
+        <span class="badge">Contacto y ubicación</span>
+        <h2 class="section-title">Coronel, Biobío. Atención directa.</h2>
+        <p class="section-lead">Dejé la sección conectada a dirección, WhatsApp, correo y redes. Si luego quieres horarios, sucursales o vendedores por zona, se escala sin drama.</p>
+        <div class="info-stack">
+          <div class="info-row"><div><small>Dirección</small><strong id="contact-address">-</strong></div><a class="btn btn-ghost" id="map-link" href="#" target="_blank" rel="noopener">Abrir mapa</a></div>
+          <div class="info-row"><div><small>WhatsApp</small><strong id="contact-whatsapp">-</strong></div><a class="btn btn-ghost" id="wa-link" href="#" target="_blank" rel="noopener">Escribir</a></div>
+          <div class="info-row"><div><small>Correo</small><strong id="contact-email">-</strong></div><a class="btn btn-ghost" id="email-link" href="#">Enviar correo</a></div>
+          <div class="info-row"><div><small>Atención</small><strong id="contact-hours">-</strong></div><a class="btn btn-ghost" href="contacto.html">Formulario</a></div>
+        </div>
+      </div>
+      <div class="location-card location-map">
+        <iframe id="map-embed" src="" loading="lazy" title="Ubicación Allmate"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-white">
+    <div class="container">
+      <span class="badge">News</span>
+      <h2 class="section-title">La estructura quedó lista para noticias y eventos</h2>
+      <p class="section-lead">Por ahora no cargué noticias porque así lo pediste. La sección ya está conectada al panel admin para cuando quieras publicar competencias, lanzamientos o contenido rider.</p>
+      <div id="home-news" class="news-grid"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>
+        <div class="brand" style="margin-bottom:16px;">
+          <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+          <span class="brand-copy">
+            <span class="brand-title">Allmate Motors</span>
+            <span class="brand-subtitle">Power and Trust</span>
+          </span>
+        </div>
+        <p id="footer-description">Distribuidor oficial de Kayo en la región del Biobío.</p>
+      </div>
+      <div class="footer-links">
+        <a href="productos.html">Productos</a>
+        <a href="news.html">News</a>
+        <a href="contacto.html">Contacto</a>
+        <a href="admin.html">Panel admin</a>
+      </div>
+      <div class="footer-links">
+        <a id="footer-instagram" href="#" target="_blank" rel="noopener">Instagram</a>
+        <a id="footer-facebook" href="#" target="_blank" rel="noopener">Facebook</a>
+        <a id="footer-payment" href="#" target="_blank" rel="noopener">Pagar con Webpay</a>
+      </div>
+    </div>
+    <div class="container footer-bottom">© 2026 Allmate Motors Ltda. Sitio listo para catálogo, news, administración y pagos.</div>
+  </footer>
+
+  <script src="js/site-config.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
