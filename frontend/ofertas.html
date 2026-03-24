@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ofertas | Allmate Motors</title>
+  <meta name="description" content="Revisa las ofertas activas de Allmate Motors en motos KAYO, con modelo destacado visible desde Inicio y botón directo de reserva.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="site-loader" id="site-loader">
+    <div class="loader-rail loader-top">CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO</div>
+    <div class="loader-center">
+      <div class="loader-value" data-loader-number>0%</div>
+      <div class="loader-text">Cargando ofertas Allmate</div>
+    </div>
+    <div class="loader-rail loader-bottom">CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO</div>
+  </div>
+
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+        <span class="brand-copy">
+          <span class="brand-title">Allmate Motors</span>
+          <span class="brand-subtitle">Ofertas</span>
+        </span>
+      </a>
+      <button class="mobile-toggle" onclick="toggleMobileMenu()">Menú</button>
+      <nav class="nav-links" id="mobile-menu">
+        <a href="index.html">Inicio</a>
+        <a href="productos.html">Productos</a>
+        <a class="active" href="ofertas.html">Ofertas</a>
+        <a href="news.html">News</a>
+        <a href="contacto.html">Contacto</a>
+        <a class="nav-cart" href="carrito.html">🛒 <span data-cart-count>0</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section" style="padding-top:48px;">
+    <div class="container">
+      <span class="badge">Promociones</span>
+      <h1 class="section-title">Modelos con oferta visible y CTA directo</h1>
+      <p class="section-lead">Agregamos la sección de ofertas al menú y una moto destacada visible desde Inicio, para activar interés comercial sin perder tiempo entre clics innecesarios.</p>
+    </div>
+  </section>
+
+  <section class="section section-light" style="padding-top:0;">
+    <div class="container" id="offer-highlight"></div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div id="offers-list" class="products-grid"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>
+        <div class="brand" style="margin-bottom:16px;">
+          <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
+          <span class="brand-copy">
+            <span class="brand-title">Allmate Motors</span>
+            <span class="brand-subtitle">Power and Trust</span>
+          </span>
+        </div>
+        <p>La oferta destacada se puede cambiar luego desde precio anterior / precio actual o con una nueva selección comercial.</p>
+      </div>
+      <div class="footer-links">
+        <a href="productos.html">Productos</a>
+        <a href="contacto.html">Contacto</a>
+        <a data-payment-link href="#" target="_blank" rel="noopener">Pagar con Webpay</a>
+      </div>
+    </div>
+    <div class="container footer-bottom">Ofertas Allmate Motors · Promo visible desde Inicio y menú.</div>
+  </footer>
+
+  <script src="js/site-config.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -18,12 +18,12 @@ router.get('/', async (_, res) => {
 
 router.post('/', authAdmin, async (req, res) => {
   try {
-    const { title, excerpt, content, image_url, author } = req.body;
+    const { title, excerpt, content, image_url, author, published_at } = req.body;
     const slug = slugify(title);
     const { rows } = await pool.query(
-      `INSERT INTO news (title, slug, excerpt, content, image_url, author)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [title, slug, excerpt, content, image_url, author || 'Allmate Motors']
+      `INSERT INTO news (title, slug, excerpt, content, image_url, author, published_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [title, slug, excerpt, content, image_url, author || 'Allmate Motors', published_at || new Date()]
     );
     res.status(201).json(rows[0]);
   } catch (error) {

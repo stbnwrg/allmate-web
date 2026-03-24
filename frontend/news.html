@@ -4,12 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>News | Allmate Motors</title>
+  <meta name="description" content="Noticias, lanzamientos y movimiento rider de Allmate Motors, ordenados por fecha y listos para seguir creciendo con el panel admin.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <div class="site-loader" id="site-loader">
+    <div class="loader-rail loader-top">CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO</div>
+    <div class="loader-center">
+      <div class="loader-value" data-loader-number>0%</div>
+      <div class="loader-text">Ordenando noticias por fecha</div>
+    </div>
+    <div class="loader-rail loader-bottom">CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO · CARGANDO</div>
+  </div>
+
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="index.html">
@@ -23,6 +33,7 @@
       <nav class="nav-links" id="mobile-menu">
         <a href="index.html">Inicio</a>
         <a href="productos.html">Productos</a>
+        <a href="ofertas.html">Ofertas</a>
         <a class="active" href="news.html">News</a>
         <a href="contacto.html">Contacto</a>
       </nav>
@@ -32,8 +43,8 @@
   <section class="section" style="padding-top:48px;">
     <div class="container">
       <span class="badge">News / blog</span>
-      <h1 class="section-title">Competencias, novedades y mundo rider</h1>
-      <p class="section-lead">La estructura está lista. Cuando publiques desde el panel admin, las noticias aparecerán aquí y también en la portada.</p>
+      <h1 class="section-title">Competencias, novedades y marca ordenadas por fecha</h1>
+      <p class="section-lead">La página ahora puede mostrar noticias anteriores, y cuando publiques nuevas desde admin se mezclarán de forma natural con las existentes gracias al orden descendente por fecha.</p>
       <div id="news-list" class="news-grid"></div>
     </div>
   </section>

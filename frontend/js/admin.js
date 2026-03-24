@@ -117,7 +117,8 @@ async function publishNews(event) {
     title: document.getElementById('news_title').value,
     excerpt: document.getElementById('news_excerpt').value,
     content: document.getElementById('news_content').value,
-    image_url: document.getElementById('news_image').value
+    image_url: document.getElementById('news_image').value,
+    published_at: document.getElementById('news_published_at').value || null
   };
 
   const res = await fetch(`${API}/news`, {

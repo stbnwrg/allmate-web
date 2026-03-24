@@ -1,5 +1,5 @@
 const API_URL = '/api';
-const DEFAULT_PRODUCT_IMAGE = '/images/productos/product-placeholder.jpg';
+const state = { products: [], news: [] };
 
 function toggleMobileMenu() {
   document.getElementById('mobile-menu')?.classList.toggle('show');
@@ -16,16 +16,12 @@ function currencyCLP(value) {
   }).format(Number(value));
 }
 
-function safeImage(imageUrl) {
-  return imageUrl || DEFAULT_PRODUCT_IMAGE;
-}
-
 function normalizeCategory(category = '') {
   return String(category).trim().toLowerCase();
 }
 
 function statusClass(status = '') {
-  const value = normalizeCategory(status).replace(/\s+/g, '-');
+  const value = normalizeCategory(status).replace(/[^a-z0-9]+/g, '-');
   return value || 'consultar';
 }
 
@@ -38,26 +34,6 @@ function setCart(cart) {
   updateCartCount();
 }
 
-function addToCart(product) {
-  const cart = getCart();
-  const current = cart.find(item => item.id === product.id);
-
-  if (current) {
-    current.quantity += 1;
-  } else {
-    cart.push({
-      id: product.id,
-      name: product.name,
-      image_url: product.image_url,
-      price: product.price || 0,
-      quantity: 1
-    });
-  }
-
-  setCart(cart);
-  alert(`${product.name} agregado al carrito.`);
-}
-
 function updateCartCount() {
   const count = getCart().reduce((acc, item) => acc + Number(item.quantity || 0), 0);
   document.querySelectorAll('[data-cart-count]').forEach(node => {
@@ -65,10 +41,72 @@ function updateCartCount() {
   });
 }
 
+function safeImage(imageUrl, fallback = '') {
+  return imageUrl || fallback;
+}
+
+function getMediaOverride(slug) {
+  return window.SITE_CONFIG.productMedia?.[slug] || null;
+}
+
+function getProductMedia(product) {
+  const override = getMediaOverride(product.slug);
+  const gallery = Array.isArray(product.gallery) ? product.gallery : [];
+  const merged = [];
+
+  if (override?.primary) merged.push(override.primary);
+  if (product.image_url) merged.push(product.image_url);
+  (override?.gallery || []).forEach(image => merged.push(image));
+  gallery.forEach(image => merged.push(image));
+
+  return [...new Set(merged.filter(Boolean))];
+}
+
+function hydrateProduct(product = {}) {
+  const override = window.SITE_CONFIG.productOverrides?.[product.slug] || {};
+  return {
+    ...product,
+    ...override,
+    image_url: override.image_url || getMediaOverride(product.slug)?.primary || product.image_url,
+    gallery: override.gallery || getMediaOverride(product.slug)?.gallery || product.gallery || []
+  };
+}
+
 async function fetchProducts() {
-  const res = await fetch(`${API_URL}/productos`);
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}/productos`);
+    const apiProducts = res.ok ? await res.json() : [];
+    const hydrated = apiProducts.map(hydrateProduct);
+    const virtual = (window.SITE_CONFIG.virtualProducts || []).map(hydrateProduct);
+    state.products = [...hydrated, ...virtual];
+  } catch (error) {
+    state.products = (window.SITE_CONFIG.virtualProducts || []).map(hydrateProduct);
+  }
+  return state.products;
+}
+
+function addToCartByKey(key) {
+  const product = state.products.find(item => String(item.id || item.slug) === String(key));
+  if (!product) return;
+
+  const cart = getCart();
+  const current = cart.find(item => String(item.id) === String(product.id || product.slug));
+
+  if (current) {
+    current.quantity += 1;
+  } else {
+    cart.push({
+      id: product.id || product.slug,
+      slug: product.slug,
+      name: product.name,
+      image_url: getProductMedia(product)[0] || '',
+      price: product.price || 0,
+      quantity: 1
+    });
+  }
+
+  setCart(cart);
+  alert(`${product.name} agregado al carrito.`);
 }
 
 function buildSpecs(product) {
@@ -90,37 +128,77 @@ function buildSpecs(product) {
     ['Observación', specs.observacion]
   ].filter(([, value]) => value);
 
-  return rows.map(([label, value]) => `<li><strong>${label}:</strong> ${value}</li>`).join('');
+  return rows.length
+    ? rows.map(([label, value]) => `<li><strong>${label}:</strong> ${value}</li>`).join('')
+    : '<li><strong>Ficha técnica:</strong> Próximamente cargaremos más datos para este modelo.</li>';
+}
+
+function escapeHtml(text = '') {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function productCard(product) {
+  const media = getProductMedia(product);
   const paymentUrl = product.payment_link || window.SITE_CONFIG.payment.generalLink;
+  const cardKey = String(product.id || product.slug);
+  const detailsId = `specs-${product.slug || cardKey}`;
+  const hasOffer = Number(product.old_price || 0) > Number(product.price || 0) || product.is_offer;
+  const offerTag = hasOffer ? `<span class="tag-pill tag-offer">${product.offer_label || 'Oferta'}</span>` : '';
+
   return `
-    <article class="product-card" data-category="${product.category || ''}">
-      <div class="product-media">
-        <img src="${safeImage(product.image_url)}" alt="${product.name}">
+    <article class="product-card" data-category="${escapeHtml(product.category || '')}">
+      <div class="product-media ${media.length ? '' : 'product-media-empty'}">
+        ${media.length ? `
+          <div class="product-gallery" data-gallery>
+            <div class="product-gallery-track">
+              ${media.map((image, index) => `
+                <div class="product-gallery-slide ${index === 0 ? 'is-active' : ''}" data-slide>
+                  <img src="${image}" alt="${escapeHtml(product.name)} - vista ${index + 1}" loading="lazy">
+                </div>
+              `).join('')}
+            </div>
+            ${media.length > 1 ? `
+              <button class="gallery-control prev" type="button" data-gallery-prev aria-label="Imagen anterior">‹</button>
+              <button class="gallery-control next" type="button" data-gallery-next aria-label="Siguiente imagen">›</button>
+              <div class="gallery-dots">${media.map((_, index) => `<button type="button" class="gallery-dot ${index === 0 ? 'is-active' : ''}" data-gallery-dot="${index}"></button>`).join('')}</div>
+            ` : ''}
+          </div>
+        ` : `
+          <div class="product-media-placeholder">
+            <span>Imagen pendiente</span>
+          </div>
+        `}
         <div class="product-tags">
-          <span class="tag-pill">${product.brand || 'KAYO'}</span>
-          <span class="status ${statusClass(product.status)}">${product.status || 'Consultar'}</span>
+          <span class="tag-pill">${escapeHtml(product.brand || 'KAYO')}</span>
+          <span class="status ${statusClass(product.status)}">${escapeHtml(product.status || 'Consultar')}</span>
+          ${offerTag}
         </div>
       </div>
-      <div class="card-body">
-        <small style="color:#b6b6b6; text-transform:uppercase; letter-spacing:.12em;">${product.category || 'Moto'}</small>
-        <h3>${product.name}</h3>
-        <p class="product-summary">${product.short_description || 'Moto cargada en catálogo. Completa la descripción desde el panel admin.'}</p>
 
-        <div class="product-specs">
+      <div class="product-ficha-row">
+        <button class="btn btn-dark btn-ficha" type="button" data-toggle-specs="${detailsId}">Ficha técnica</button>
+      </div>
+
+      <div class="card-body">
+        <small class="eyebrow">${escapeHtml(product.category || 'Moto')}</small>
+        <h3>${escapeHtml(product.name)}</h3>
+        <p class="product-summary">${escapeHtml(product.short_description || 'Modelo disponible para atención comercial y carga técnica progresiva.')}</p>
+
+        <div class="product-specs compact">
           <div class="spec-box"><small>Cilindrada</small><strong>${product.engine_cc ? `${product.engine_cc} cc` : 'Consultar'}</strong></div>
-          <div class="spec-box"><small>Motor</small><strong>${product.engine_type || 'Consultar'}</strong></div>
-          <div class="spec-box"><small>Transmisión</small><strong>${product.transmission || 'Consultar'}</strong></div>
-          <div class="spec-box"><small>Arranque</small><strong>${product.start_type || 'Consultar'}</strong></div>
+          <div class="spec-box"><small>Motor</small><strong>${escapeHtml(product.engine_type || 'Consultar')}</strong></div>
         </div>
 
-        <details class="specs-accordion">
-          <summary>Ver ficha técnica completa</summary>
+        <details class="specs-accordion" id="${detailsId}">
+          <summary>Ver detalle completo</summary>
           <div class="specs-accordion-body">
             <ul class="specs-list">${buildSpecs(product)}</ul>
-            ${product.description ? `<p>${product.description}</p>` : ''}
+            ${product.description ? `<p>${escapeHtml(product.description)}</p>` : ''}
             ${product.brochure_url ? `<p><a class="btn btn-ghost" href="${product.brochure_url}" target="_blank" rel="noopener">Abrir ficha PDF</a></p>` : ''}
           </div>
         </details>
@@ -128,13 +206,13 @@ function productCard(product) {
         <div class="price-row">
           <div>
             <div class="price">${currencyCLP(product.price)}</div>
-            ${product.old_price ? `<div class="old-price">${currencyCLP(product.old_price)}</div>` : ''}
+            ${hasOffer ? `<div class="old-price">${currencyCLP(product.old_price)}</div>` : ''}
           </div>
-          <div style="text-align:right; color:#bdbdbd; font-size:.9rem;">${product.stock ? `${product.stock} en stock` : 'Stock por confirmar'}</div>
+          <div class="stock-copy">${product.stock ? `${product.stock} en stock` : 'Stock por confirmar'}</div>
         </div>
 
         <div class="product-actions">
-          <button class="btn" onclick='addToCart(${JSON.stringify(product)})'>Agregar al carrito</button>
+          <button class="btn" type="button" data-add-cart="${escapeHtml(cardKey)}">Agregar al carrito</button>
           <a class="btn btn-dark" href="${paymentUrl}" target="_blank" rel="noopener">Pagar / reservar</a>
         </div>
       </div>
@@ -142,52 +220,57 @@ function productCard(product) {
   `;
 }
 
-async function loadFeaturedProducts() {
-  const container = document.getElementById('featured-products');
-  if (!container) return;
-  const products = await fetchProducts();
-  const featured = products.filter(item => item.featured).slice(0, 6);
-  container.innerHTML = featured.length
-    ? featured.map(productCard).join('')
-    : '<div class="empty-state">Todavía no hay modelos destacados. Súbelos desde el panel admin.</div>';
+function setGalleryIndex(gallery, index) {
+  const slides = [...gallery.querySelectorAll('[data-slide]')];
+  const dots = [...gallery.querySelectorAll('[data-gallery-dot]')];
+  if (!slides.length) return;
+  const nextIndex = (index + slides.length) % slides.length;
+  gallery.dataset.index = nextIndex;
+  slides.forEach((slide, slideIndex) => slide.classList.toggle('is-active', slideIndex === nextIndex));
+  dots.forEach((dot, dotIndex) => dot.classList.toggle('is-active', dotIndex === nextIndex));
 }
 
-async function loadProductsPage() {
-  const container = document.getElementById('products-list');
-  if (!container) return;
-
-  const products = await fetchProducts();
-  const buttons = document.querySelectorAll('.filter-btn');
-  const params = new URLSearchParams(window.location.search);
-  const initialCategory = params.get('cat');
-
-  function render(category = 'all') {
-    const filtered = category === 'all'
-      ? products
-      : products.filter(item => normalizeCategory(item.category) === normalizeCategory(category));
-
-    container.innerHTML = filtered.length
-      ? filtered.map(productCard).join('')
-      : '<div class="empty-state">No encontramos modelos en esta categoría.</div>';
-  }
-
-  buttons.forEach(button => {
-    button.addEventListener('click', () => {
-      buttons.forEach(item => item.classList.remove('active'));
-      button.classList.add('active');
-      render(button.dataset.category);
-    });
-
-    if (initialCategory && normalizeCategory(button.dataset.category) === normalizeCategory(initialCategory)) {
-      button.classList.add('active');
-    } else if (!initialCategory && button.dataset.category === 'all') {
-      button.classList.add('active');
-    } else if (initialCategory) {
-      button.classList.remove('active');
-    }
+function bindDynamicUI(scope = document) {
+  scope.querySelectorAll('[data-add-cart]').forEach(button => {
+    button.onclick = () => addToCartByKey(button.dataset.addCart);
   });
 
-  render(initialCategory || 'all');
+  scope.querySelectorAll('[data-toggle-specs]').forEach(button => {
+    button.onclick = () => {
+      const target = document.getElementById(button.dataset.toggleSpecs);
+      if (!target) return;
+      target.open = !target.open;
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+  });
+
+  scope.querySelectorAll('[data-gallery]').forEach(gallery => {
+    gallery.dataset.index = gallery.dataset.index || '0';
+    const prev = gallery.querySelector('[data-gallery-prev]');
+    const next = gallery.querySelector('[data-gallery-next]');
+    prev && (prev.onclick = () => setGalleryIndex(gallery, Number(gallery.dataset.index || 0) - 1));
+    next && (next.onclick = () => setGalleryIndex(gallery, Number(gallery.dataset.index || 0) + 1));
+    gallery.querySelectorAll('[data-gallery-dot]').forEach(dot => {
+      dot.onclick = () => setGalleryIndex(gallery, Number(dot.dataset.galleryDot));
+    });
+  });
+}
+
+function buildEmptyState(category = 'all') {
+  if (normalizeCategory(category) === 'atv') {
+    return `
+      <div class="empty-state empty-state-rich">
+        <h3>ATV y UTV en evaluación comercial</h3>
+        <p>La línea ATV/UTV se puede trabajar bajo pedido. Déjanos tu consulta y te ayudamos a encontrar el formato correcto para tu necesidad.</p>
+        <a class="btn" href="contacto.html?tipo=ATV%20/%20UTV">Consultar ATV / UTV</a>
+      </div>
+    `;
+  }
+  return '<div class="empty-state">No encontramos modelos en esta categoría. Cambia el filtro o escríbenos para una búsqueda más específica.</div>';
+}
+
+function sortNewsByDate(items = []) {
+  return [...items].sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0));
 }
 
 async function loadNewsHome() {
@@ -195,21 +278,33 @@ async function loadNewsHome() {
   const listContainer = document.getElementById('news-list');
   if (!homeContainer && !listContainer) return;
 
-  const res = await fetch(`${API_URL}/news`);
-  const items = res.ok ? await res.json() : [];
+  let items = [];
+  try {
+    const res = await fetch(`${API_URL}/news`);
+    items = res.ok ? await res.json() : [];
+  } catch (_) {
+    items = [];
+  }
+
+  if (!items.length) {
+    items = window.SITE_CONFIG.newsFallback || [];
+  }
+
+  items = sortNewsByDate(items);
+  state.news = items;
 
   const html = items.length
     ? items.map(item => `
         <article class="news-card">
-          <img class="news-image" src="${safeImage(item.image_url)}" alt="${item.title}">
+          <img class="news-image" src="${safeImage(item.image_url)}" alt="${escapeHtml(item.title)}" loading="lazy">
           <div class="card-body">
-            <small>${new Date(item.published_at).toLocaleDateString('es-CL')}</small>
-            <h3>${item.title}</h3>
-            <p>${item.excerpt || 'Sin extracto todavía.'}</p>
+            <small>${new Date(item.published_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</small>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p>${escapeHtml(item.excerpt || 'Sin extracto todavía.')}</p>
           </div>
         </article>
       `).join('')
-    : '<div class="empty-state">La estructura de noticias quedó lista, pero todavía no hay publicaciones cargadas.</div>';
+    : '<div class="empty-state">Todavía no hay noticias publicadas.</div>';
 
   if (homeContainer) homeContainer.innerHTML = html;
   if (listContainer) listContainer.innerHTML = html;
@@ -219,8 +314,14 @@ async function setupHeroSlider() {
   const heroRoot = document.getElementById('hero-slides');
   if (!heroRoot) return;
 
-  const res = await fetch(`${API_URL}/hero`);
-  const slides = res.ok ? await res.json() : [];
+  let slides = [];
+  try {
+    const res = await fetch(`${API_URL}/hero`);
+    slides = res.ok ? await res.json() : [];
+  } catch (_) {
+    slides = [];
+  }
+
   const finalSlides = slides.length ? slides : window.SITE_CONFIG.heroFallback;
 
   heroRoot.innerHTML = finalSlides.map((slide, index) => `
@@ -253,40 +354,263 @@ async function setupHeroSlider() {
   }
 }
 
+function buildOfferPanel(product) {
+  if (!product) return '<div class="empty-state">Todavía no hay una oferta activa cargada.</div>';
+  const image = getProductMedia(product)[0] || '';
+  return `
+    <div class="offer-panel offer-panel-priority">
+      <div class="offer-visual ${image ? '' : 'offer-visual-empty'}">
+        ${image ? `<img src="${image}" alt="${escapeHtml(product.name)} en oferta" loading="lazy">` : '<div class="product-media-placeholder"><span>Imagen pendiente</span></div>'}
+      </div>
+      <div class="offer-copy">
+        <span class="badge">Oferta de la semana</span>
+        <h2 class="section-title">${escapeHtml(product.name)}</h2>
+        <p class="section-lead">${escapeHtml(product.short_description || 'Aprovecha un modelo destacado con precio promocional y contacto inmediato.')}</p>
+        <div class="offer-price-row">
+          <div class="price">${currencyCLP(product.price)}</div>
+          ${product.old_price ? `<div class="old-price">${currencyCLP(product.old_price)}</div>` : ''}
+        </div>
+        <div class="hero-actions">
+          <a class="btn" href="ofertas.html">Ver ofertas</a>
+          <a class="btn btn-dark" href="${product.payment_link || window.SITE_CONFIG.payment.generalLink}" target="_blank" rel="noopener">Reservar ahora</a>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getOfferProducts(products = []) {
+  const offers = products.filter(item => Number(item.old_price || 0) > Number(item.price || 0) || item.is_offer);
+  if (offers.length) return offers;
+  return [hydrateProduct(window.SITE_CONFIG.offerFallback)].filter(Boolean);
+}
+
+async function loadOfferHighlight() {
+  const highlight = document.getElementById('offer-highlight');
+  const offersList = document.getElementById('offers-list');
+  if (!highlight && !offersList) return;
+
+  const products = state.products.length ? state.products : await fetchProducts();
+  const offers = getOfferProducts(products);
+
+  if (highlight) {
+    highlight.innerHTML = buildOfferPanel(offers[0]);
+  }
+
+  if (offersList) {
+    offersList.innerHTML = offers.length
+      ? offers.map(productCard).join('')
+      : '<div class="empty-state">No hay ofertas activas por ahora.</div>';
+    bindDynamicUI(offersList);
+  }
+}
+
+function populateAboutSection() {
+  document.querySelectorAll('[data-branch-name]').forEach(node => node.textContent = window.SITE_CONFIG.contact.branchName);
+  document.querySelectorAll('[data-coverage]').forEach(node => node.textContent = window.SITE_CONFIG.contact.coverage);
+  document.querySelectorAll('[data-history]').forEach(node => node.textContent = window.SITE_CONFIG.contact.history);
+  document.querySelectorAll('[data-story]').forEach(node => node.textContent = window.SITE_CONFIG.contact.story);
+}
+
 function populateContactBlocks() {
   const config = window.SITE_CONFIG;
   const whatsappUrl = `https://wa.me/${config.contact.whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(config.contact.whatsappText)}`;
 
-  document.querySelectorAll('#contact-address').forEach(node => node.textContent = config.contact.address);
-  document.querySelectorAll('#contact-whatsapp').forEach(node => node.textContent = config.contact.whatsappLabel);
-  document.querySelectorAll('#contact-email').forEach(node => node.textContent = config.contact.email);
-  document.querySelectorAll('#contact-hours').forEach(node => node.textContent = config.contact.hours);
-  document.querySelectorAll('#map-link').forEach(node => node.href = config.contact.mapUrl);
-  document.querySelectorAll('#wa-link').forEach(node => node.href = whatsappUrl);
-  document.querySelectorAll('#email-link').forEach(node => node.href = `mailto:${config.contact.email}`);
-  document.querySelectorAll('#map-embed').forEach(node => node.src = config.contact.mapEmbed);
-  document.querySelectorAll('#footer-instagram').forEach(node => {
+  document.querySelectorAll('[data-contact-address]').forEach(node => node.textContent = config.contact.address);
+  document.querySelectorAll('[data-contact-whatsapp]').forEach(node => node.textContent = config.contact.whatsappLabel);
+  document.querySelectorAll('[data-contact-email]').forEach(node => node.textContent = config.contact.email);
+  document.querySelectorAll('[data-contact-hours]').forEach(node => node.textContent = config.contact.hours);
+  document.querySelectorAll('[data-map-link]').forEach(node => node.href = config.contact.mapUrl);
+  document.querySelectorAll('[data-wa-link]').forEach(node => node.href = whatsappUrl);
+  document.querySelectorAll('[data-email-link]').forEach(node => node.href = `mailto:${config.contact.email}`);
+  document.querySelectorAll('[data-map-embed]').forEach(node => node.src = config.contact.mapEmbed);
+  document.querySelectorAll('[data-instagram-link]').forEach(node => {
     node.href = config.contact.instagram;
-    node.textContent = `Instagram ${config.contact.instagramLabel}`;
+    const label = node.querySelector('[data-instagram-label]');
+    if (label) label.textContent = config.contact.instagramLabel;
   });
-  document.querySelectorAll('#footer-facebook').forEach(node => {
+  document.querySelectorAll('[data-facebook-link]').forEach(node => {
     node.href = config.contact.facebook;
     node.textContent = config.contact.facebookLabel;
   });
-  document.querySelectorAll('#footer-payment').forEach(node => {
+  document.querySelectorAll('[data-payment-link]').forEach(node => {
     node.href = config.payment.generalLink;
     node.textContent = `Pagar con ${config.payment.provider}`;
   });
-  document.querySelectorAll('#hero-whatsapp').forEach(node => node.href = whatsappUrl);
-  const desc = document.getElementById('footer-description');
-  if (desc) desc.textContent = config.contact.description;
+  document.querySelectorAll('[data-hero-wa]').forEach(node => node.href = whatsappUrl);
+  document.querySelectorAll('[data-footer-description]').forEach(node => node.textContent = config.contact.description);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function buildModelOptions() {
+  const products = state.products.filter(item => !['repuestos'].includes(normalizeCategory(item.category)));
+  return products.map(product => `<option value="${escapeHtml(product.name)}"></option>`).join('');
+}
+
+function fillModelDatalists() {
+  const options = buildModelOptions();
+  document.querySelectorAll('[data-model-options]').forEach(node => {
+    node.innerHTML = options;
+  });
+}
+
+function bindLeadForms() {
+  document.querySelectorAll('[data-lead-form]').forEach(form => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const type = form.dataset.formType || 'general';
+      const alertBox = form.querySelector('.form-alert');
+      const name = form.querySelector('[name="name"]')?.value || '';
+      const email = form.querySelector('[name="email"]')?.value || '';
+      const phone = form.querySelector('[name="phone"]')?.value || '';
+      const model = form.querySelector('[name="model"]')?.value || 'No indicado';
+      const inquiryType = form.querySelector('[name="inquiry_type"]')?.value || type;
+      const details = form.querySelector('[name="message"]')?.value || '';
+      const subject = form.querySelector('[name="subject"]')?.value || (type === 'repuestos' ? 'Cotización de repuesto' : 'Consulta comercial Allmate');
+
+      const payload = {
+        name,
+        email,
+        phone,
+        subject,
+        message: `Tipo de consulta: ${inquiryType}\nModelo: ${model}\nDetalle: ${details}`
+      };
+
+      const res = await fetch('/api/contacto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (alertBox) {
+        alertBox.className = `alert show ${res.ok ? 'success' : 'error'} form-alert`;
+        alertBox.textContent = res.ok ? 'Consulta enviada correctamente. Te responderemos por correo o WhatsApp.' : (data.message || 'No se pudo enviar la consulta.');
+      }
+      if (res.ok) form.reset();
+    });
+  });
+}
+
+function prefillFormFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const model = params.get('modelo');
+  const tipo = params.get('tipo');
+  if (model) {
+    document.querySelectorAll('[name="model"]').forEach(node => node.value = model);
+  }
+  if (tipo) {
+    document.querySelectorAll('[name="inquiry_type"]').forEach(node => {
+      if ([...node.options].some(option => normalizeCategory(option.value) === normalizeCategory(tipo))) {
+        node.value = tipo;
+      }
+    });
+  }
+}
+
+function renderVisualMarquee() {
+  const root = document.querySelector('[data-visual-marquee]');
+  const track = document.querySelector('[data-visual-marquee-track]');
+  if (!root || !track) return;
+
+  const items = window.SITE_CONFIG.homeScrollImages || [];
+  if (!items.length) return;
+
+  const buildItem = (item) => `
+    <figure class="visual-marquee-item ${item.wide ? 'is-wide' : ''}">
+      <img src="${item.image_url}" alt="${escapeHtml(item.alt || 'KAYO Allmate Motors Biobío')}" loading="lazy">
+    </figure>
+  `;
+
+  track.innerHTML = [...items, ...items].map(buildItem).join('');
+}
+
+async function loadProductsPage() {
+  const container = document.getElementById('products-list');
+  if (!container) return;
+
+  const products = (state.products.length ? state.products : await fetchProducts()).filter(item => normalizeCategory(item.category) !== 'repuestos');
+  const buttons = document.querySelectorAll('.filter-btn');
+  const params = new URLSearchParams(window.location.search);
+  const initialCategory = params.get('cat');
+
+  function render(category = 'all') {
+    const filtered = category === 'all'
+      ? products
+      : products.filter(item => normalizeCategory(item.category) === normalizeCategory(category));
+
+    container.innerHTML = filtered.length
+      ? filtered.map(productCard).join('')
+      : buildEmptyState(category);
+    bindDynamicUI(container);
+  }
+
+  buttons.forEach(button => {
+    button.addEventListener('click', () => {
+      buttons.forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      render(button.dataset.category);
+    });
+
+    if (initialCategory && normalizeCategory(button.dataset.category) === normalizeCategory(initialCategory)) {
+      button.classList.add('active');
+    } else if (!initialCategory && button.dataset.category === 'all') {
+      button.classList.add('active');
+    } else if (initialCategory) {
+      button.classList.remove('active');
+    }
+  });
+
+  render(initialCategory || 'all');
+  fillModelDatalists();
+}
+
+function startLoader() {
+  const loader = document.getElementById('site-loader');
+  const number = loader?.querySelector('[data-loader-number]');
+  if (!loader || !number) return;
+
+  document.body.classList.add('is-loading');
+  let progress = 7;
+  number.textContent = `${progress}%`;
+
+  const timer = setInterval(() => {
+    if (progress < 93) {
+      progress += Math.floor(Math.random() * 6) + 1;
+      if (progress > 93) progress = 93;
+      number.textContent = `${progress}%`;
+    }
+  }, 110);
+
+  window.addEventListener('load', () => {
+    clearInterval(timer);
+    let finalProgress = progress;
+    const finish = setInterval(() => {
+      finalProgress += 3;
+      if (finalProgress >= 100) {
+        finalProgress = 100;
+        number.textContent = '100%';
+        clearInterval(finish);
+        loader.classList.add('is-hidden');
+        document.body.classList.remove('is-loading');
+        setTimeout(() => loader.remove(), 520);
+      } else {
+        number.textContent = `${finalProgress}%`;
+      }
+    }, 18);
+  }, { once: true });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  startLoader();
   updateCartCount();
   populateContactBlocks();
+  populateAboutSection();
   setupHeroSlider();
-  loadFeaturedProducts();
-  loadProductsPage();
-  loadNewsHome();
+  await fetchProducts();
+  await loadOfferHighlight();
+  renderVisualMarquee();
+  await loadProductsPage();
+  await loadNewsHome();
+  fillModelDatalists();
+  bindLeadForms();
+  prefillFormFromQuery();
 });

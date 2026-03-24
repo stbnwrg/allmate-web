@@ -55,7 +55,7 @@
               <form id="product-form" class="form-grid" enctype="multipart/form-data">
                 <div class="field full"><label>Nombre</label><input name="name" required placeholder="Ej: KAYO T4 250 cc"></div>
                 <div class="field"><label>Marca</label><input name="brand" value="KAYO"></div>
-                <div class="field"><label>Categoría</label><select name="category"><option>Enduro</option><option>Pit Bike</option><option>Mini</option></select></div>
+                <div class="field"><label>Categoría</label><select name="category"><option>Enduro</option><option>Pit Bike</option><option>Mini</option><option>ATV</option></select></div>
                 <div class="field"><label>Estado comercial</label><select name="status"><option>Disponible</option><option>Consultar</option><option>Por pedido</option><option>Sin stock</option></select></div>
                 <div class="field"><label>Orden</label><input name="sort_order" type="number" value="100"></div>
 
@@ -93,9 +93,10 @@
               <h2 style="margin-top:0;">Publicar noticia</h2>
               <form id="news-form" class="form-grid">
                 <div class="field full"><label>Título</label><input id="news_title" required></div>
+                <div class="field"><label>Fecha publicación</label><input id="news_published_at" type="date"></div>
+                <div class="field"><label>Imagen URL</label><input id="news_image" placeholder="/images/news/news-1.jpg"></div>
                 <div class="field full"><label>Extracto</label><textarea id="news_excerpt"></textarea></div>
                 <div class="field full"><label>Contenido</label><textarea id="news_content" required></textarea></div>
-                <div class="field full"><label>Imagen URL</label><input id="news_image" placeholder="/images/news/news-1.jpg"></div>
                 <div class="field full"><button class="btn btn-block" type="submit">Publicar noticia</button></div>
               </form>
             </div>

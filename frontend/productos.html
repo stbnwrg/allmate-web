@@ -3,13 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo KAYO en Biobío | Enduro, Pit Bike y Mini | Allmate Motors</title>
+  <title>Productos | Motos KAYO y repuestos | Allmate Motors</title>
+  <meta name="description" content="Catálogo Allmate Motors con motos KAYO, ATV/UTV bajo pedido y formulario de cotización de repuestos para Concepción y la región del Biobío.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <div class="site-loader" id="site-loader" aria-hidden="true">
+    <div class="loader-rail loader-top">CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO</div>
+    <div class="loader-center"><div class="loader-value" data-loader-number>0%</div></div>
+    <div class="loader-rail loader-bottom">CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO &nbsp;&nbsp; CARGANDO</div>
+  </div>
+
   <header class="topbar">
     <div class="container nav">
       <a class="brand" href="index.html">
@@ -23,9 +30,9 @@
       <nav class="nav-links" id="mobile-menu">
         <a href="index.html">Inicio</a>
         <a class="active" href="productos.html">Productos</a>
+        <a href="ofertas.html">Ofertas</a>
         <a href="news.html">News</a>
         <a href="contacto.html">Contacto</a>
-        <a href="admin.html">Admin</a>
         <a class="nav-cart" href="carrito.html">🛒 <span data-cart-count>0</span></a>
       </nav>
     </div>
@@ -33,16 +40,47 @@
 
   <section class="section" style="padding-top:48px;">
     <div class="container">
-      <span class="badge">Catálogo</span>
-      <h1 class="section-title">Todas las motos Allmate</h1>
-      <p class="section-lead">Las fichas vienen precargadas con información inicial basada en sitios oficiales KAYO y Kayomoto. Cada modelo se puede editar, completar y subir con su imagen real desde el panel admin.</p>
-      <div class="filters">
+      <span class="badge">Motos</span>
+      <h1 class="section-title">Motos KAYO en Concepción y Biobío</h1>
+      <p class="section-lead">La parte superior de esta página se enfoca en motos. Si una ficha todavía no tiene imagen, quedará vacía hasta que cargues la foto correcta.</p>
+      <div class="filters filters-wide">
         <button class="filter-btn active" data-category="all">Todos</button>
         <button class="filter-btn" data-category="Enduro">Enduro</button>
         <button class="filter-btn" data-category="Pit Bike">Pit Bike</button>
         <button class="filter-btn" data-category="Mini">Mini</button>
+        <button class="filter-btn" data-category="ATV">ATV / UTV</button>
       </div>
       <div id="products-list" class="products-grid"></div>
+    </div>
+  </section>
+
+  <section class="section section-light" id="repuestos-cta">
+    <div class="container parts-layout">
+      <div class="parts-copy">
+        <span class="badge">Repuestos</span>
+        <h2 class="section-title">Cotiza repuestos con información útil, no con adivinanzas.</h2>
+        <p class="section-lead">La parte inferior de la página queda dedicada a repuestos. Aquí el cliente puede indicar la moto, dejar contacto y describir bien la pieza o accesorio que necesita.</p>
+        <ul class="parts-list">
+          <li>Nombre y teléfono para respuesta rápida</li>
+          <li>Correo para cotización formal</li>
+          <li>Modelo exacto de la moto o línea que usa</li>
+          <li>Detalle del repuesto, medida, lado o referencia</li>
+        </ul>
+      </div>
+      <div class="contact-panel lead-form-panel">
+        <form class="form-grid" data-lead-form data-form-type="repuestos">
+          <div class="alert form-alert"></div>
+          <div class="field"><label>Nombre</label><input name="name" required></div>
+          <div class="field"><label>Número de contacto</label><input name="phone" required></div>
+          <div class="field"><label>Correo</label><input name="email" type="email" required></div>
+          <div class="field"><label>Modelo de la moto</label><input name="model" list="model-options" required placeholder="Ej: KAYO T4 250"></div>
+          <div class="field full"><label>Tipo de solicitud</label><select name="inquiry_type"><option value="Repuestos">Repuestos</option><option value="Accesorios">Accesorios</option><option value="Compatibilidad">Compatibilidad</option><option value="ATV / UTV">ATV / UTV</option></select></div>
+          <div class="field full"><label>Información importante</label><textarea name="message" required placeholder="Describe el repuesto, lado, medida, año aproximado, foto de referencia o cualquier dato que permita identificar mejor la solicitud."></textarea></div>
+          <input type="hidden" name="subject" value="Cotización de repuesto Allmate">
+          <div class="field full"><button class="btn btn-block" type="submit">Enviar solicitud</button></div>
+        </form>
+        <datalist id="model-options" data-model-options></datalist>
+      </div>
     </div>
   </section>
 
@@ -56,19 +94,19 @@
             <span class="brand-subtitle">Power and Trust</span>
           </span>
         </div>
-        <p>Catálogo editable desde admin, con fichas técnicas expandibles y CTAs para carrito, cotización y link de pago.</p>
+        <p>Catálogo con imágenes reales, ATV/UTV bajo pedido, oferta visible y cotización de repuestos integrada.</p>
       </div>
       <div class="footer-links">
         <a href="index.html">Inicio</a>
+        <a href="ofertas.html">Ofertas</a>
         <a href="contacto.html">Contacto</a>
-        <a href="carrito.html">Carrito</a>
       </div>
       <div class="footer-links">
-        <a id="footer-payment" href="#" target="_blank" rel="noopener">Pagar con Webpay</a>
-        <a id="footer-instagram" href="#" target="_blank" rel="noopener">Instagram</a>
+        <a data-payment-link href="#" target="_blank" rel="noopener">Pagar con Webpay</a>
+        <a data-instagram-link href="#" target="_blank" rel="noopener"><span data-instagram-label>Instagram</span></a>
       </div>
     </div>
-    <div class="container footer-bottom">Allmate Motors · Catálogo inicial listo para completar con fotos y brochure.</div>
+    <div class="container footer-bottom">Allmate Motors · Motos KAYO, repuestos y líneas ATV listas para escalar.</div>
   </footer>
 
   <script src="js/site-config.js"></script>

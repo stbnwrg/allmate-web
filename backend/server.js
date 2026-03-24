@@ -42,6 +42,6 @@ app.use('/api/hero', heroRoutes);
 app.use('/api/contacto', contactoRoutes);
 app.use('/api/pagos', pagosRoutes);
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor Allmate en http://localhost:${PORT}`);
 });
