@@ -95,8 +95,8 @@ window.SITE_CONFIG = {
       gallery: ['/images/productos/tt160/moto-concepcion-tt160-2.webp']
     },
     'kayo-tt140': {
-      primary: '/images/productos/tt140/moto-concepcion-tt140-1.webp',
-      gallery: ['/images/productos/tt140/moto-concepcion-tt140-2.webp']
+      primary: '/images/productos/tt140/moto-concepcion-tt140-1.jpg',
+      gallery: ['/images/productos/tt140/moto-concepcion-tt140-2.jpg']
     },
     'kayo-tt125': {
       primary: '/images/productos/tt125/moto-concepcion-tt125-1.webp',
