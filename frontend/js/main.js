@@ -1,616 +1,271 @@
-const API_URL = '/api';
-const state = { products: [], news: [] };
+const SITE = window.SITE_CONFIG || {};
+const PRODUCTS = SITE.products || [];
+const NEWS = (SITE.news || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+const DEFAULT_DOMAIN = window.location.origin;
 
-function toggleMobileMenu() {
-  document.getElementById('mobile-menu')?.classList.toggle('show');
-}
+function qs(selector, scope = document) { return scope.querySelector(selector); }
+function qsa(selector, scope = document) { return Array.from(scope.querySelectorAll(selector)); }
+function toggleMobileMenu() { qs('#mobile-menu')?.classList.toggle('show'); }
+window.toggleMobileMenu = toggleMobileMenu;
 
 function currencyCLP(value) {
-  if (value === null || value === undefined || value === '' || Number.isNaN(Number(value)) || Number(value) <= 0) {
-    return 'Consultar';
-  }
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0
-  }).format(Number(value));
+  if (!value || Number(value) <= 0) return 'Cotizar';
+  return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(Number(value));
 }
-
-function normalizeCategory(category = '') {
-  return String(category).trim().toLowerCase();
-}
-
 function statusClass(status = '') {
-  const value = normalizeCategory(status).replace(/[^a-z0-9]+/g, '-');
-  return value || 'consultar';
+  return String(status).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-');
 }
-
-function getCart() {
-  return JSON.parse(localStorage.getItem('allmate_cart') || '[]');
-}
-
-function setCart(cart) {
-  localStorage.setItem('allmate_cart', JSON.stringify(cart));
-  updateCartCount();
-}
-
-function updateCartCount() {
-  const count = getCart().reduce((acc, item) => acc + Number(item.quantity || 0), 0);
-  document.querySelectorAll('[data-cart-count]').forEach(node => {
-    node.textContent = count;
-  });
-}
-
-function safeImage(imageUrl, fallback = '') {
-  return imageUrl || fallback;
-}
-
-function getMediaOverride(slug) {
-  return window.SITE_CONFIG.productMedia?.[slug] || null;
-}
-
-function getProductMedia(product) {
-  const override = getMediaOverride(product.slug);
-  const gallery = Array.isArray(product.gallery) ? product.gallery : [];
-  const merged = [];
-
-  if (override?.primary) merged.push(override.primary);
-  if (product.image_url) merged.push(product.image_url);
-  (override?.gallery || []).forEach(image => merged.push(image));
-  gallery.forEach(image => merged.push(image));
-
-  return [...new Set(merged.filter(Boolean))];
-}
-
-function hydrateProduct(product = {}) {
-  const override = window.SITE_CONFIG.productOverrides?.[product.slug] || {};
-  return {
-    ...product,
-    ...override,
-    image_url: override.image_url || getMediaOverride(product.slug)?.primary || product.image_url,
-    gallery: override.gallery || getMediaOverride(product.slug)?.gallery || product.gallery || []
-  };
-}
-
-async function fetchProducts() {
-  try {
-    const res = await fetch(`${API_URL}/productos`);
-    const apiProducts = res.ok ? await res.json() : [];
-    const hydrated = apiProducts.map(hydrateProduct);
-    const virtual = (window.SITE_CONFIG.virtualProducts || []).map(hydrateProduct);
-    state.products = [...hydrated, ...virtual];
-  } catch (error) {
-    state.products = (window.SITE_CONFIG.virtualProducts || []).map(hydrateProduct);
-  }
-  return state.products;
-}
-
-function addToCartByKey(key) {
-  const product = state.products.find(item => String(item.id || item.slug) === String(key));
-  if (!product) return;
-
+function getCart() { try { return JSON.parse(localStorage.getItem('allmate_cart') || '[]'); } catch { return []; } }
+function setCart(cart) { localStorage.setItem('allmate_cart', JSON.stringify(cart)); updateCartCount(); }
+function updateCartCount() { const count = getCart().reduce((a, i) => a + Number(i.quantity || 0), 0); qsa('[data-cart-count]').forEach(n => n.textContent = count); }
+function addToCart(product) {
   const cart = getCart();
-  const current = cart.find(item => String(item.id) === String(product.id || product.slug));
-
-  if (current) {
-    current.quantity += 1;
-  } else {
-    cart.push({
-      id: product.id || product.slug,
-      slug: product.slug,
-      name: product.name,
-      image_url: getProductMedia(product)[0] || '',
-      price: product.price || 0,
-      quantity: 1
-    });
-  }
-
+  const item = cart.find(i => i.slug === product.slug);
+  if (item) item.quantity += 1;
+  else cart.push({ slug: product.slug, name: product.name, price: product.price || 0, image: product.image, quantity: 1 });
   setCart(cart);
   alert(`${product.name} agregado al carrito.`);
 }
+window.addToCart = addToCart;
 
-function buildSpecs(product) {
-  const specs = product.specs || {};
-  const rows = [
-    ['Cilindrada', product.engine_cc ? `${product.engine_cc} cc` : null],
-    ['Motor', product.engine_type],
-    ['Refrigeración', product.cooling],
-    ['Transmisión', product.transmission],
-    ['Arranque', product.start_type],
-    ['Suspensión delantera', product.suspension_front],
-    ['Suspensión trasera', product.suspension_rear],
-    ['Altura asiento', product.seat_height],
-    ['Peso', product.weight_kg],
-    ['Frenos', specs.frenos],
-    ['Llantas', specs.llantas],
-    ['Combustible', specs.combustible],
-    ['Potencia', specs.potencia],
-    ['Observación', specs.observacion]
-  ].filter(([, value]) => value);
-
-  return rows.length
-    ? rows.map(([label, value]) => `<li><strong>${label}:</strong> ${value}</li>`).join('')
-    : '<li><strong>Ficha técnica:</strong> Próximamente cargaremos más datos para este modelo.</li>';
+function imageMarkup(product, eager = false) {
+  if (!product.image) return `<div class="product-media product-media-empty"><span>Imagen pendiente</span></div>`;
+  return `<div class="product-media"><img src="${product.image}" alt="${product.name}" loading="${eager ? 'eager' : 'lazy'}" onerror="this.closest('.product-media').classList.add('product-media-empty');this.remove();"></div>`;
 }
+function productUrl(slug) { return `producto.html?slug=${encodeURIComponent(slug)}`; }
+function newsUrl(slug) { return `noticia.html?slug=${encodeURIComponent(slug)}`; }
 
-function escapeHtml(text = '') {
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function productCard(product) {
-  const media = getProductMedia(product);
-  const paymentUrl = product.payment_link || window.SITE_CONFIG.payment.generalLink;
-  const cardKey = String(product.id || product.slug);
-  const detailsId = `specs-${product.slug || cardKey}`;
-  const hasOffer = Number(product.old_price || 0) > Number(product.price || 0) || product.is_offer;
-  const offerTag = hasOffer ? `<span class="tag-pill tag-offer">${product.offer_label || 'Oferta'}</span>` : '';
-
+function productCard(product, options = {}) {
+  const old = product.old_price ? `<div class="old-price">${currencyCLP(product.old_price)}</div>` : '';
+  const offer = product.old_price ? '<span class="tag-pill tag-offer">Oferta</span>' : '';
   return `
-    <article class="product-card" data-category="${escapeHtml(product.category || '')}">
-      <div class="product-media ${media.length ? '' : 'product-media-empty'}">
-        ${media.length ? `
-          <div class="product-gallery" data-gallery>
-            <div class="product-gallery-track">
-              ${media.map((image, index) => `
-                <div class="product-gallery-slide ${index === 0 ? 'is-active' : ''}" data-slide>
-                  <img src="${image}" alt="${escapeHtml(product.name)} - vista ${index + 1}" loading="lazy">
-                </div>
-              `).join('')}
-            </div>
-            ${media.length > 1 ? `
-              <button class="gallery-control prev" type="button" data-gallery-prev aria-label="Imagen anterior">‹</button>
-              <button class="gallery-control next" type="button" data-gallery-next aria-label="Siguiente imagen">›</button>
-              <div class="gallery-dots">${media.map((_, index) => `<button type="button" class="gallery-dot ${index === 0 ? 'is-active' : ''}" data-gallery-dot="${index}"></button>`).join('')}</div>
-            ` : ''}
-          </div>
-        ` : `
-          <div class="product-media-placeholder">
-            <span>Imagen pendiente</span>
-          </div>
-        `}
-        <div class="product-tags">
-          <span class="tag-pill">${escapeHtml(product.brand || 'KAYO')}</span>
-          <span class="status ${statusClass(product.status)}">${escapeHtml(product.status || 'Consultar')}</span>
-          ${offerTag}
-        </div>
-      </div>
-
-      <div class="product-ficha-row">
-        <button class="btn btn-dark btn-ficha" type="button" data-toggle-specs="${detailsId}">Ficha técnica</button>
-      </div>
-
+    <article class="product-card" data-category="${product.category}">
+      ${imageMarkup(product, options.eager)}
       <div class="card-body">
-        <small class="eyebrow">${escapeHtml(product.category || 'Moto')}</small>
-        <h3>${escapeHtml(product.name)}</h3>
-        <p class="product-summary">${escapeHtml(product.short_description || 'Modelo disponible para atención comercial y carga técnica progresiva.')}</p>
+        <div class="product-tags-row"><span class="tag-pill">${product.category}</span>${offer}<span class="status ${statusClass(product.status)}">${product.status}</span></div>
+        <h3>${product.name}</h3>
+        <p class="product-summary">${product.short}</p>
+        <div class="price-row"><div><div class="price">${currencyCLP(product.price)}</div>${old}</div></div>
+        <div class="product-actions solo"><a class="btn btn-full" href="${productUrl(product.slug)}">${options.offer ? 'Ver oferta' : 'Ficha técnica'}</a></div>
+      </div>
+    </article>`;
+}
 
-        <div class="product-specs compact">
-          <div class="spec-box"><small>Cilindrada</small><strong>${product.engine_cc ? `${product.engine_cc} cc` : 'Consultar'}</strong></div>
-          <div class="spec-box"><small>Motor</small><strong>${escapeHtml(product.engine_type || 'Consultar')}</strong></div>
-        </div>
-
-        <details class="specs-accordion" id="${detailsId}">
-          <summary>Ver detalle completo</summary>
-          <div class="specs-accordion-body">
-            <ul class="specs-list">${buildSpecs(product)}</ul>
-            ${product.description ? `<p>${escapeHtml(product.description)}</p>` : ''}
-            ${product.brochure_url ? `<p><a class="btn btn-ghost" href="${product.brochure_url}" target="_blank" rel="noopener">Abrir ficha PDF</a></p>` : ''}
-          </div>
-        </details>
-
-        <div class="price-row">
-          <div>
-            <div class="price">${currencyCLP(product.price)}</div>
-            ${hasOffer ? `<div class="old-price">${currencyCLP(product.old_price)}</div>` : ''}
-          </div>
-          <div class="stock-copy">${product.stock ? `${product.stock} en stock` : 'Stock por confirmar'}</div>
-        </div>
-
-        <div class="product-actions">
-          <button class="btn" type="button" data-add-cart="${escapeHtml(cardKey)}">Agregar al carrito</button>
-          <a class="btn btn-dark" href="${paymentUrl}" target="_blank" rel="noopener">Pagar / reservar</a>
-        </div>
+function renderCategories() {
+  const mount = qs('#home-categories');
+  if (!mount) return;
+  mount.innerHTML = `
+    <article class="category-card short-card">
+      <img src="images/productos/t4-250/moto-concepcion-t4-250-1.webp" alt="Moto enduro KAYO disponible en Allmate Motors Biobío" loading="lazy">
+      <div class="content">
+        <span class="status disponible">Dirt Bike / Enduro</span>
+        <h3>Enduro y nivel medio</h3>
+        <p>Modelos para aprendizaje serio, trail y salto al siguiente escalón del off-road.</p>
+        <a class="btn" href="productos.html?cat=Enduro">Ver modelos</a>
       </div>
     </article>
-  `;
-}
-
-function setGalleryIndex(gallery, index) {
-  const slides = [...gallery.querySelectorAll('[data-slide]')];
-  const dots = [...gallery.querySelectorAll('[data-gallery-dot]')];
-  if (!slides.length) return;
-  const nextIndex = (index + slides.length) % slides.length;
-  gallery.dataset.index = nextIndex;
-  slides.forEach((slide, slideIndex) => slide.classList.toggle('is-active', slideIndex === nextIndex));
-  dots.forEach((dot, dotIndex) => dot.classList.toggle('is-active', dotIndex === nextIndex));
-}
-
-function bindDynamicUI(scope = document) {
-  scope.querySelectorAll('[data-add-cart]').forEach(button => {
-    button.onclick = () => addToCartByKey(button.dataset.addCart);
-  });
-
-  scope.querySelectorAll('[data-toggle-specs]').forEach(button => {
-    button.onclick = () => {
-      const target = document.getElementById(button.dataset.toggleSpecs);
-      if (!target) return;
-      target.open = !target.open;
-      target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    };
-  });
-
-  scope.querySelectorAll('[data-gallery]').forEach(gallery => {
-    gallery.dataset.index = gallery.dataset.index || '0';
-    const prev = gallery.querySelector('[data-gallery-prev]');
-    const next = gallery.querySelector('[data-gallery-next]');
-    prev && (prev.onclick = () => setGalleryIndex(gallery, Number(gallery.dataset.index || 0) - 1));
-    next && (next.onclick = () => setGalleryIndex(gallery, Number(gallery.dataset.index || 0) + 1));
-    gallery.querySelectorAll('[data-gallery-dot]').forEach(dot => {
-      dot.onclick = () => setGalleryIndex(gallery, Number(dot.dataset.galleryDot));
-    });
-  });
-}
-
-function buildEmptyState(category = 'all') {
-  if (normalizeCategory(category) === 'atv') {
-    return `
-      <div class="empty-state empty-state-rich">
-        <h3>ATV y UTV en evaluación comercial</h3>
-        <p>La línea ATV/UTV se puede trabajar bajo pedido. Déjanos tu consulta y te ayudamos a encontrar el formato correcto para tu necesidad.</p>
-        <a class="btn" href="contacto.html?tipo=ATV%20/%20UTV">Consultar ATV / UTV</a>
+    <article class="category-card short-card">
+      <img src="images/productos/tt160/moto-concepcion-tt160-1.webp" alt="Pit bike KAYO en Concepción y Biobío" loading="lazy">
+      <div class="content">
+        <span class="status disponible">Pit Bike</span>
+        <h3>Iniciación y progresión</h3>
+        <p>Motos compactas para riders jóvenes y quienes quieren entrar al mundo KAYO.</p>
+        <a class="btn" href="productos.html?cat=Pit%20Bike">Ver modelos</a>
       </div>
-    `;
-  }
-  return '<div class="empty-state">No encontramos modelos en esta categoría. Cambia el filtro o escríbenos para una búsqueda más específica.</div>';
-}
-
-function sortNewsByDate(items = []) {
-  return [...items].sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0));
-}
-
-async function loadNewsHome() {
-  const homeContainer = document.getElementById('home-news');
-  const listContainer = document.getElementById('news-list');
-  if (!homeContainer && !listContainer) return;
-
-  let items = [];
-  try {
-    const res = await fetch(`${API_URL}/news`);
-    items = res.ok ? await res.json() : [];
-  } catch (_) {
-    items = [];
-  }
-
-  if (!items.length) {
-    items = window.SITE_CONFIG.newsFallback || [];
-  }
-
-  items = sortNewsByDate(items);
-  state.news = items;
-
-  const html = items.length
-    ? items.map(item => `
-        <article class="news-card">
-          <img class="news-image" src="${safeImage(item.image_url)}" alt="${escapeHtml(item.title)}" loading="lazy">
-          <div class="card-body">
-            <small>${new Date(item.published_at).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</small>
-            <h3>${escapeHtml(item.title)}</h3>
-            <p>${escapeHtml(item.excerpt || 'Sin extracto todavía.')}</p>
-          </div>
-        </article>
-      `).join('')
-    : '<div class="empty-state">Todavía no hay noticias publicadas.</div>';
-
-  if (homeContainer) homeContainer.innerHTML = html;
-  if (listContainer) listContainer.innerHTML = html;
-}
-
-async function setupHeroSlider() {
-  const heroRoot = document.getElementById('hero-slides');
-  if (!heroRoot) return;
-
-  let slides = [];
-  try {
-    const res = await fetch(`${API_URL}/hero`);
-    slides = res.ok ? await res.json() : [];
-  } catch (_) {
-    slides = [];
-  }
-
-  const finalSlides = slides.length ? slides : window.SITE_CONFIG.heroFallback;
-
-  heroRoot.innerHTML = finalSlides.map((slide, index) => `
-    <div class="hero-slide ${index === 0 ? 'active' : ''}" style="background-image:url('${safeImage(slide.image_url)}')"></div>
-  `).join('');
-
-  let active = 0;
-  const title = document.getElementById('hero-title');
-  const subtitle = document.getElementById('hero-subtitle');
-  const cta = document.getElementById('hero-cta');
-
-  function applySlide(index) {
-    const slide = finalSlides[index];
-    const nodes = heroRoot.querySelectorAll('.hero-slide');
-    nodes.forEach((node, nodeIndex) => node.classList.toggle('active', nodeIndex === index));
-    if (title) title.textContent = slide.title || 'Allmate Motors';
-    if (subtitle) subtitle.textContent = slide.subtitle || '';
-    if (cta) {
-      cta.textContent = slide.cta_label || 'Ver catálogo';
-      cta.href = slide.cta_url || 'productos.html';
-    }
-  }
-
-  applySlide(0);
-  if (finalSlides.length > 1) {
-    setInterval(() => {
-      active = (active + 1) % finalSlides.length;
-      applySlide(active);
-    }, 4800);
-  }
-}
-
-function buildOfferPanel(product) {
-  if (!product) return '<div class="empty-state">Todavía no hay una oferta activa cargada.</div>';
-  const image = getProductMedia(product)[0] || '';
-  return `
-    <div class="offer-panel offer-panel-priority">
-      <div class="offer-visual ${image ? '' : 'offer-visual-empty'}">
-        ${image ? `<img src="${image}" alt="${escapeHtml(product.name)} en oferta" loading="lazy">` : '<div class="product-media-placeholder"><span>Imagen pendiente</span></div>'}
+    </article>
+    <article class="category-card short-card">
+      <img src="images/carrusel/allmate-kayo-biobio-atv-10.webp" alt="ATV y UTV KAYO en Biobío" loading="lazy">
+      <div class="content">
+        <span class="status disponible">ATV / UTV</span>
+        <h3>Iniciación ATV / UTV</h3>
+        <p>Línea de iniciación y entretenimiento para quienes buscan ATV y UTV KAYO bajo pedido.</p>
+        <a class="btn" href="productos.html?cat=ATV%20%2F%20UTV">Ver iniciación</a>
       </div>
-      <div class="offer-copy">
-        <span class="badge">Oferta de la semana</span>
-        <h2 class="section-title">${escapeHtml(product.name)}</h2>
-        <p class="section-lead">${escapeHtml(product.short_description || 'Aprovecha un modelo destacado con precio promocional y contacto inmediato.')}</p>
-        <div class="offer-price-row">
-          <div class="price">${currencyCLP(product.price)}</div>
-          ${product.old_price ? `<div class="old-price">${currencyCLP(product.old_price)}</div>` : ''}
-        </div>
-        <div class="hero-actions">
-          <a class="btn" href="ofertas.html">Ver ofertas</a>
-          <a class="btn btn-dark" href="${product.payment_link || window.SITE_CONFIG.payment.generalLink}" target="_blank" rel="noopener">Reservar ahora</a>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function getOfferProducts(products = []) {
-  const offers = products.filter(item => Number(item.old_price || 0) > Number(item.price || 0) || item.is_offer);
-  if (offers.length) return offers;
-  return [hydrateProduct(window.SITE_CONFIG.offerFallback)].filter(Boolean);
-}
-
-async function loadOfferHighlight() {
-  const highlight = document.getElementById('offer-highlight');
-  const offersList = document.getElementById('offers-list');
-  if (!highlight && !offersList) return;
-
-  const products = state.products.length ? state.products : await fetchProducts();
-  const offers = getOfferProducts(products);
-
-  if (highlight) {
-    highlight.innerHTML = buildOfferPanel(offers[0]);
-  }
-
-  if (offersList) {
-    offersList.innerHTML = offers.length
-      ? offers.map(productCard).join('')
-      : '<div class="empty-state">No hay ofertas activas por ahora.</div>';
-    bindDynamicUI(offersList);
-  }
-}
-
-function populateAboutSection() {
-  document.querySelectorAll('[data-branch-name]').forEach(node => node.textContent = window.SITE_CONFIG.contact.branchName);
-  document.querySelectorAll('[data-coverage]').forEach(node => node.textContent = window.SITE_CONFIG.contact.coverage);
-  document.querySelectorAll('[data-history]').forEach(node => node.textContent = window.SITE_CONFIG.contact.history);
-  document.querySelectorAll('[data-story]').forEach(node => node.textContent = window.SITE_CONFIG.contact.story);
-}
-
-function populateContactBlocks() {
-  const config = window.SITE_CONFIG;
-  const whatsappUrl = `https://wa.me/${config.contact.whatsappNumber.replace(/\D/g, '')}?text=${encodeURIComponent(config.contact.whatsappText)}`;
-
-  document.querySelectorAll('[data-contact-address]').forEach(node => node.textContent = config.contact.address);
-  document.querySelectorAll('[data-contact-whatsapp]').forEach(node => node.textContent = config.contact.whatsappLabel);
-  document.querySelectorAll('[data-contact-email]').forEach(node => node.textContent = config.contact.email);
-  document.querySelectorAll('[data-contact-hours]').forEach(node => node.textContent = config.contact.hours);
-  document.querySelectorAll('[data-map-link]').forEach(node => node.href = config.contact.mapUrl);
-  document.querySelectorAll('[data-wa-link]').forEach(node => node.href = whatsappUrl);
-  document.querySelectorAll('[data-email-link]').forEach(node => node.href = `mailto:${config.contact.email}`);
-  document.querySelectorAll('[data-map-embed]').forEach(node => node.src = config.contact.mapEmbed);
-  document.querySelectorAll('[data-instagram-link]').forEach(node => {
-    node.href = config.contact.instagram;
-    const label = node.querySelector('[data-instagram-label]');
-    if (label) label.textContent = config.contact.instagramLabel;
-  });
-  document.querySelectorAll('[data-facebook-link]').forEach(node => {
-    node.href = config.contact.facebook;
-    node.textContent = config.contact.facebookLabel;
-  });
-  document.querySelectorAll('[data-payment-link]').forEach(node => {
-    node.href = config.payment.generalLink;
-    node.textContent = `Pagar con ${config.payment.provider}`;
-  });
-  document.querySelectorAll('[data-hero-wa]').forEach(node => node.href = whatsappUrl);
-  document.querySelectorAll('[data-footer-description]').forEach(node => node.textContent = config.contact.description);
-}
-
-function buildModelOptions() {
-  const products = state.products.filter(item => !['repuestos'].includes(normalizeCategory(item.category)));
-  return products.map(product => `<option value="${escapeHtml(product.name)}"></option>`).join('');
-}
-
-function fillModelDatalists() {
-  const options = buildModelOptions();
-  document.querySelectorAll('[data-model-options]').forEach(node => {
-    node.innerHTML = options;
-  });
-}
-
-function bindLeadForms() {
-  document.querySelectorAll('[data-lead-form]').forEach(form => {
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const type = form.dataset.formType || 'general';
-      const alertBox = form.querySelector('.form-alert');
-      const name = form.querySelector('[name="name"]')?.value || '';
-      const email = form.querySelector('[name="email"]')?.value || '';
-      const phone = form.querySelector('[name="phone"]')?.value || '';
-      const model = form.querySelector('[name="model"]')?.value || 'No indicado';
-      const inquiryType = form.querySelector('[name="inquiry_type"]')?.value || type;
-      const details = form.querySelector('[name="message"]')?.value || '';
-      const subject = form.querySelector('[name="subject"]')?.value || (type === 'repuestos' ? 'Cotización de repuesto' : 'Consulta comercial Allmate');
-
-      const payload = {
-        name,
-        email,
-        phone,
-        subject,
-        message: `Tipo de consulta: ${inquiryType}\nModelo: ${model}\nDetalle: ${details}`
-      };
-
-      const res = await fetch('/api/contacto', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (alertBox) {
-        alertBox.className = `alert show ${res.ok ? 'success' : 'error'} form-alert`;
-        alertBox.textContent = res.ok ? 'Consulta enviada correctamente. Te responderemos por correo o WhatsApp.' : (data.message || 'No se pudo enviar la consulta.');
-      }
-      if (res.ok) form.reset();
-    });
-  });
-}
-
-function prefillFormFromQuery() {
-  const params = new URLSearchParams(window.location.search);
-  const model = params.get('modelo');
-  const tipo = params.get('tipo');
-  if (model) {
-    document.querySelectorAll('[name="model"]').forEach(node => node.value = model);
-  }
-  if (tipo) {
-    document.querySelectorAll('[name="inquiry_type"]').forEach(node => {
-      if ([...node.options].some(option => normalizeCategory(option.value) === normalizeCategory(tipo))) {
-        node.value = tipo;
-      }
-    });
-  }
+    </article>`;
 }
 
 function renderVisualMarquee() {
-  const root = document.querySelector('[data-visual-marquee]');
-  const track = document.querySelector('[data-visual-marquee-track]');
-  if (!root || !track) return;
-
-  const items = window.SITE_CONFIG.homeScrollImages || [];
-  if (!items.length) return;
-
-  const buildItem = (item) => `
-    <figure class="visual-marquee-item ${item.wide ? 'is-wide' : ''}">
-      <img src="${item.image_url}" alt="${escapeHtml(item.alt || 'KAYO Allmate Motors Biobío')}" loading="lazy">
-    </figure>
-  `;
-
-  track.innerHTML = [...items, ...items].map(buildItem).join('');
+  const mount = qs('#visual-marquee');
+  if (!mount) return;
+  const items = [...(SITE.visualMarquee || []), ...(SITE.visualMarquee || [])].map(item => `
+    <article class="visual-card visual-card-wide">
+      <img src="${item.image}" alt="${item.alt}" loading="lazy">
+      <div class="visual-card-copy"><span>${item.eyebrow}</span><strong>${item.title}</strong></div>
+    </article>`).join('');
+  mount.innerHTML = `<div class="visual-track visual-track-soft">${items}</div>`;
 }
 
-async function loadProductsPage() {
-  const container = document.getElementById('products-list');
-  if (!container) return;
+function renderOffers() {
+  const mount = qs('#offer-highlight');
+  if (!mount) return;
+  const offers = (SITE.offers || []).length ? SITE.offers : PRODUCTS.filter(p => p.old_price);
+  if (!offers.length) {
+    mount.innerHTML = '';
+    return;
+  }
+  const base = offers.length === 1 ? Array(5).fill(offers[0]) : [...offers];
+  const source = [...base, ...base, ...base];
+  mount.innerHTML = `
+    <div class="offer-highlight-shell">
+      <div class="offer-highlight-track">
+        ${source.map(item => `
+          <article class="offer-feature-card">
+            <div class="offer-feature-media ${item.image ? '' : 'empty'}">
+              ${item.image ? `<img src="${item.image}" alt="Oferta ${item.name}" loading="lazy">` : '<span>Imagen pendiente</span>'}
+            </div>
+            <div class="offer-feature-copy">
+              <span class="offer-label">Oferta de la semana</span>
+              <h3>${item.name}</h3>
+              <p>${item.short}</p>
+              <div class="offer-prices"><strong>${currencyCLP(item.price)}</strong>${item.old_price ? `<span>${currencyCLP(item.old_price)}</span>` : ''}</div>
+              <a class="btn" href="${productUrl(item.slug)}">Ver oferta</a>
+            </div>
+          </article>`).join('')}
+      </div>
+    </div>`;
+}
 
-  const products = (state.products.length ? state.products : await fetchProducts()).filter(item => normalizeCategory(item.category) !== 'repuestos');
-  const buttons = document.querySelectorAll('.filter-btn');
-  const params = new URLSearchParams(window.location.search);
-  const initialCategory = params.get('cat');
+function renderProductsPage() {
+  const mount = qs('#products-list');
+  if (!mount) return;
+  let currentFilter = new URLSearchParams(window.location.search).get('cat') || 'Todos';
+  const filters = qsa('#product-filters .filter-pill');
 
-  function render(category = 'all') {
-    const filtered = category === 'all'
-      ? products
-      : products.filter(item => normalizeCategory(item.category) === normalizeCategory(category));
-
-    container.innerHTML = filtered.length
-      ? filtered.map(productCard).join('')
-      : buildEmptyState(category);
-    bindDynamicUI(container);
+  function paint() {
+    const visible = currentFilter === 'Todos'
+      ? PRODUCTS
+      : PRODUCTS.filter(p => p.category === currentFilter);
+    mount.innerHTML = visible.map((p, i) => productCard(p, { eager: i < 3 })).join('');
+    filters.forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentFilter));
   }
 
-  buttons.forEach(button => {
-    button.addEventListener('click', () => {
-      buttons.forEach(item => item.classList.remove('active'));
-      button.classList.add('active');
-      render(button.dataset.category);
-    });
+  filters.forEach(btn => btn.addEventListener('click', () => {
+    currentFilter = btn.dataset.filter;
+    paint();
+  }));
 
-    if (initialCategory && normalizeCategory(button.dataset.category) === normalizeCategory(initialCategory)) {
-      button.classList.add('active');
-    } else if (!initialCategory && button.dataset.category === 'all') {
-      button.classList.add('active');
-    } else if (initialCategory) {
-      button.classList.remove('active');
-    }
-  });
-
-  render(initialCategory || 'all');
-  fillModelDatalists();
+  if (!['Todos', 'Enduro', 'Pit Bike', 'Mini', 'ATV / UTV'].includes(currentFilter)) currentFilter = 'Todos';
+  paint();
 }
 
-function startLoader() {
-  const loader = document.getElementById('site-loader');
-  const number = loader?.querySelector('[data-loader-number]');
-  if (!loader || !number) return;
+function renderNewsPreview() {
+  const mount = qs('#home-news');
+  if (!mount) return;
+  mount.innerHTML = NEWS.slice(0, 3).map(item => `
+    <article class="news-card">
+      <a href="${newsUrl(item.slug)}" class="news-card-link">
+        <img class="news-image" src="${item.hero}" alt="${item.title}" loading="lazy">
+        <div class="card-body"><small>${new Date(item.date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</small><h3>${item.title}</h3><p>${item.excerpt}</p></div>
+      </a>
+    </article>`).join('');
+}
+function renderNewsPage() {
+  const mount = qs('#news-list');
+  if (!mount) return;
+  mount.innerHTML = NEWS.map(item => `
+    <article class="news-card">
+      <a href="${newsUrl(item.slug)}" class="news-card-link">
+        <img class="news-image" src="${item.hero}" alt="${item.title}" loading="lazy">
+        <div class="card-body"><small>${new Date(item.date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</small><h3>${item.title}</h3><p>${item.excerpt}</p><span class="text-link">Leer noticia completa</span></div>
+      </a>
+    </article>`).join('');
+}
 
+function populateFooter() {
+  qsa('[data-footer-description]').forEach(el => el.textContent = SITE.footerText || '');
+  qsa('[data-payment-link]').forEach(el => el.href = SITE.payment.generalLink);
+  qsa('[data-instagram-link]').forEach(el => el.href = SITE.contact.instagram);
+  qsa('[data-instagram-label]').forEach(el => el.textContent = '@allmatemotors.cl');
+  qsa('[data-whatsapp-link]').forEach(el => el.href = SITE.contact.whatsapp);
+  qsa('[data-whatsapp-label]').forEach(el => el.textContent = SITE.contact.telephone);
+  qsa('[data-contact-email]').forEach(el => el.textContent = SITE.contact.email);
+}
+
+function setupLoader() {
   document.body.classList.add('is-loading');
-  let progress = 7;
-  number.textContent = `${progress}%`;
-
+  const node = qs('[data-loader-progress]');
+  let progress = 0;
   const timer = setInterval(() => {
-    if (progress < 93) {
-      progress += Math.floor(Math.random() * 6) + 1;
-      if (progress > 93) progress = 93;
-      number.textContent = `${progress}%`;
-    }
-  }, 110);
-
+    progress = Math.min(99, progress + Math.ceil(Math.random() * 12));
+    if (node) node.textContent = `${progress}%`;
+  }, 100);
   window.addEventListener('load', () => {
     clearInterval(timer);
-    let finalProgress = progress;
-    const finish = setInterval(() => {
-      finalProgress += 3;
-      if (finalProgress >= 100) {
-        finalProgress = 100;
-        number.textContent = '100%';
-        clearInterval(finish);
-        loader.classList.add('is-hidden');
-        document.body.classList.remove('is-loading');
-        setTimeout(() => loader.remove(), 520);
-      } else {
-        number.textContent = `${finalProgress}%`;
-      }
-    }, 18);
-  }, { once: true });
+    if (node) node.textContent = '100%';
+    setTimeout(() => {
+      document.body.classList.remove('is-loading');
+      const loader = qs('.page-loader');
+      if (loader) { loader.classList.add('hide'); setTimeout(() => loader.remove(), 450); }
+    }, 220);
+  });
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  startLoader();
+function submitRepuestosForm(event) {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const msg = `Hola Allmate, necesito cotizar un repuesto.%0A%0ANombre: ${encodeURIComponent(data.get('nombre') || '')}%0AModelo: ${encodeURIComponent(data.get('modelo') || '')}%0ATeléfono: ${encodeURIComponent(data.get('telefono') || '')}%0ACorreo: ${encodeURIComponent(data.get('correo') || '')}%0ATipo de repuesto: ${encodeURIComponent(data.get('tipo') || '')}%0ADetalle: ${encodeURIComponent(data.get('detalle') || '')}`;
+  window.open(`https://wa.me/56992178719?text=${msg}`, '_blank');
+}
+window.submitRepuestosForm = submitRepuestosForm;
+
+function injectJsonLd(data) {
+  const el = document.createElement('script');
+  el.type = 'application/ld+json';
+  el.textContent = JSON.stringify(data);
+  document.head.appendChild(el);
+}
+function setMetaDescription(text) {
+  let meta = qs('meta[name="description"]');
+  if (!meta) { meta = document.createElement('meta'); meta.name = 'description'; document.head.appendChild(meta); }
+  meta.setAttribute('content', text);
+}
+
+function renderProductDetail() {
+  const mount = qs('#product-detail');
+  if (!mount) return;
+  const slug = new URLSearchParams(window.location.search).get('slug');
+  const p = PRODUCTS.find(item => item.slug === slug) || PRODUCTS[0];
+  document.title = `${p.name} en Concepción y Biobío | Precio, ficha técnica y oferta | Allmate Motors`;
+  setMetaDescription(`Conoce la ${p.name} disponible en Allmate Motors. Revisa precio, ficha técnica, imágenes y atención directa para Coronel, Concepción y la Región del Biobío.`);
+  const specs = [['Categoría', p.category], ['Cilindrada', p.cc], ['Motor', p.motor], ['Refrigeración', p.cooling], ['Transmisión', p.transmission], ['Arranque', p.start], ['Suspensión delantera', p.sf], ['Suspensión trasera', p.sr], ['Altura asiento', p.seat], ['Peso', p.weight], ['Frenos', p.frenos], ['Llantas', p.llantas], ['Potencia', p.potencia]].map(([l, v]) => `<div class="spec-item"><small>${l}</small><strong>${v}</strong></div>`).join('');
+  const faq = (p.faq || []).map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`).join('');
+  const thumbs = (p.gallery || []).map(g => `<img src="${g}" alt="${p.name} imagen adicional" loading="lazy">`).join('');
+  mount.innerHTML = `<div class="detail-gallery"><div class="detail-gallery-main">${p.image ? `<img src="${p.image}" alt="${p.name} en Allmate Motors" onerror="this.parentNode.innerHTML='<div class=\'product-media product-media-empty\'><span>Imagen pendiente</span></div>'">` : `<div class="product-media product-media-empty"><span>Imagen pendiente</span></div>`}</div><div class="detail-gallery-thumbs">${thumbs}</div></div><div class="detail-copy"><span class="badge detail-kicker">${p.category} · ${p.status}</span><h1 class="detail-title">${p.name}</h1><p class="detail-intro">${p.long}</p><div class="detail-price-box"><div class="detail-price">${currencyCLP(p.price)}</div>${p.old_price ? `<div class="detail-old">${currencyCLP(p.old_price)}</div>` : ''}</div><div class="detail-cta"><a class="btn" href="https://www.webpay.cl/form-pay/204308" target="_blank" rel="noopener">Pagar / reservar</a><a class="btn btn-dark" href="https://wa.me/56992178719?text=Hola%20Allmate%2C%20quiero%20cotizar%20la%20${encodeURIComponent(p.name)}" target="_blank" rel="noopener">Cotizar por WhatsApp</a></div><div class="spec-grid">${specs}</div><div class="longtail-box"><h2>Contenido long-tail orientado a búsqueda local</h2><p>Esta ficha está pensada para consultas como <strong>${p.name} Concepción</strong>, <strong>${p.name} Biobío</strong>, <strong>precio ${p.name}</strong> y búsquedas de motos KAYO de gama media en la zona sur. La idea es concentrar información, precio y acción comercial en una sola URL.</p></div><div class="faq-box"><h2>Preguntas frecuentes</h2>${faq}</div></div>`;
+  injectJsonLd({ "@context": "https://schema.org", "@type": "Product", "name": p.name, "image": [DEFAULT_DOMAIN + p.image, ...(p.gallery || []).map(g => DEFAULT_DOMAIN + g)], "description": p.long, "brand": { "@type": "Brand", "name": "KAYO" }, "sku": p.slug, "offers": { "@type": "Offer", "priceCurrency": "CLP", "price": String(p.price || 0), "availability": p.status === 'Disponible' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder', "url": window.location.href }, "category": p.category });
+  injectJsonLd({ "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{ "@type": "ListItem", "position": 1, "name": "Inicio", "item": DEFAULT_DOMAIN + '/' }, { "@type": "ListItem", "position": 2, "name": "Productos", "item": DEFAULT_DOMAIN + '/productos.html' }, { "@type": "ListItem", "position": 3, "name": p.name, 'item': window.location.href }] });
+}
+
+function renderNewsDetail() {
+  const mount = qs('#news-detail');
+  if (!mount) return;
+  const slug = new URLSearchParams(window.location.search).get('slug');
+  const n = NEWS.find(item => item.slug === slug) || NEWS[0];
+  document.title = `${n.title} | Allmate Motors`;
+  setMetaDescription(n.excerpt);
+  const paras = (n.content || []).map(p => `<p>${p}</p>`).join('');
+  const gallery = (n.gallery || []).map((g, i) => `<img src="${g}" alt="${n.title} imagen ${i + 1}" loading="lazy">`).join('');
+  const related = NEWS.filter(item => item.slug !== n.slug).map(item => `<a class="related-link" href="${newsUrl(item.slug)}"><strong>${item.title}</strong><span>${item.excerpt}</span></a>`).join('');
+  mount.innerHTML = `<div class="article-hero"><img src="${n.hero}" alt="${n.title}" loading="eager"></div><article class="article-main article-box"><div class="article-meta">${new Date(n.date + 'T12:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}</div><h1 class="article-title">${n.title}</h1><div class="article-body">${paras}<h2>Más contexto local</h2><p>Este tipo de contenido ayuda a reforzar señales de marca, cobertura territorial y búsquedas long-tail como motos KAYO Biobío, distribuidor KAYO Concepción o catálogo KAYO Coronel.</p></div><div class="article-gallery">${gallery}</div></article><aside class="article-side article-box"><h2>Más noticias</h2><div class="related-list">${related}</div></aside>`;
+  injectJsonLd({ "@context": "https://schema.org", "@type": "Article", "headline": n.title, "datePublished": n.date, "dateModified": n.date, "description": n.excerpt, "image": [DEFAULT_DOMAIN + n.hero, ...(n.gallery || []).map(g => DEFAULT_DOMAIN + g)], "author": { "@type": "Organization", "name": "Allmate Motors" }, "publisher": { "@type": "Organization", "name": "Allmate Motors", "logo": { "@type": "ImageObject", "url": DEFAULT_DOMAIN + '/images/branding/logo-principal.jpeg' } }, "mainEntityOfPage": window.location.href });
+  injectJsonLd({ "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{ "@type": "ListItem", "position": 1, "name": "Inicio", "item": DEFAULT_DOMAIN + '/' }, { "@type": "ListItem", "position": 2, "name": "News", "item": DEFAULT_DOMAIN + '/news.html' }, { "@type": "ListItem", "position": 3, "name": n.title, 'item': window.location.href }] });
+}
+
+function injectHomeSchema() {
+  if (document.body.dataset.page !== 'home') return;
+  injectJsonLd({ "@context": "https://schema.org", "@type": "LocalBusiness", "name": SITE.brand.name, "url": DEFAULT_DOMAIN + '/', "image": DEFAULT_DOMAIN + '/images/hero/hero-1.jpeg', "logo": DEFAULT_DOMAIN + '/images/branding/logo-principal.jpeg', "telephone": SITE.contact.telephone, "email": SITE.contact.email, "description": SITE.footerText, "address": { "@type": "PostalAddress", "streetAddress": "Calle Corcovado #991, Cerro Santa Elena", "addressLocality": "Coronel", "addressRegion": "Región del Biobío", "addressCountry": "CL" }, "areaServed": ["Coronel", "Concepción", "Gran Concepción", "Región del Biobío"], "sameAs": [SITE.contact.instagram] });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupLoader();
   updateCartCount();
-  populateContactBlocks();
-  populateAboutSection();
-  setupHeroSlider();
-  await fetchProducts();
-  await loadOfferHighlight();
+  populateFooter();
+  renderCategories();
   renderVisualMarquee();
-  await loadProductsPage();
-  await loadNewsHome();
-  fillModelDatalists();
-  bindLeadForms();
-  prefillFormFromQuery();
+  renderOffers();
+  renderProductsPage();
+  renderNewsPreview();
+  renderNewsPage();
+  renderProductDetail();
+  renderNewsDetail();
+  injectHomeSchema();
 });
