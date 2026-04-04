@@ -18,6 +18,10 @@ function statusClass(status = '') {
 function getCart() { try { return JSON.parse(localStorage.getItem('allmate_cart') || '[]'); } catch { return []; } }
 function setCart(cart) { localStorage.setItem('allmate_cart', JSON.stringify(cart)); updateCartCount(); }
 function updateCartCount() { const count = getCart().reduce((a, i) => a + Number(i.quantity || 0), 0); qsa('[data-cart-count]').forEach(n => n.textContent = count); }
+window.getCart = getCart;
+window.setCart = setCart;
+window.updateCartCount = updateCartCount;
+window.currencyCLP = currencyCLP;
 function addToCart(product) {
   const cart = getCart();
   const item = cart.find(i => i.slug === product.slug);

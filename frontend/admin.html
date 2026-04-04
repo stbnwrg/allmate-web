@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin | Allmate Motors</title>
+  <title>Mini CMS | Allmate Motors</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/admin-cms.css">
 </head>
 <body>
   <header class="topbar">
@@ -16,118 +17,121 @@
         <span class="brand-mark"><img src="images/branding/logo-principal.jpeg" alt="Logo Allmate"></span>
         <span class="brand-copy">
           <span class="brand-title">Allmate Motors</span>
-          <span class="brand-subtitle">Panel admin</span>
+          <span class="brand-subtitle">Mini CMS</span>
         </span>
       </a>
+      <button id="logout-btn" class="btn btn-dark" style="display:none;">Salir</button>
     </div>
   </header>
 
-  <section class="section" style="padding-top:48px;">
+  <main class="section" style="padding-top:32px;">
     <div class="container">
       <div id="admin-alert" class="alert"></div>
 
-      <div id="login-view" class="admin-panel" style="max-width:520px; margin:0 auto; padding:24px;">
-        <span class="badge">Acceso</span>
+      <section id="login-view" class="admin-login-card">
+        <span class="badge">Backoffice</span>
         <h1 class="section-title">Ingreso administrador</h1>
+        <p class="section-lead">Un solo acceso, pero ahora con control por página, sección y subsección. Nada de editar HTML como en 2009.</p>
         <form id="login-form" class="form-grid">
           <div class="field full"><label>Email</label><input id="admin_email" type="email" required></div>
           <div class="field full"><label>Contraseña</label><input id="admin_password" type="password" required></div>
-          <div class="field full"><button class="btn btn-block" type="submit">Entrar</button></div>
+          <div class="field full"><button class="btn btn-block" type="submit">Entrar al CMS</button></div>
         </form>
-        <p class="helper-text">Credenciales iniciales en <code>.env</code>. Después las cambias y listo, sin drama.</p>
+      </section>
+
+      <section id="dashboard-view" style="display:none;">
+        <div class="cms-shell">
+          <aside class="cms-sidebar">
+            <div class="cms-sidebar-head">
+              <span class="badge">Contenido</span>
+              <h2>Mini CMS</h2>
+              <p>Edita la web por página y por sección.</p>
+            </div>
+            <nav id="cms-page-nav" class="cms-page-nav"></nav>
+            <div class="cms-sidebar-footer">
+              <button id="btn-new-page" class="btn btn-dark btn-block" type="button">Nueva página</button>
+              <button id="btn-open-settings" class="btn btn-block" type="button">Ajustes globales</button>
+            </div>
+          </aside>
+
+          <section class="cms-main">
+            <div class="cms-main-topbar">
+              <div>
+                <span class="badge">Edición</span>
+                <h1 id="cms-page-title" class="section-title">Selecciona una página</h1>
+              </div>
+              <div class="cms-top-actions">
+                <button id="btn-edit-page" class="btn btn-dark" type="button">Editar página</button>
+                <button id="btn-new-section" class="btn" type="button">Nueva sección</button>
+              </div>
+            </div>
+
+            <div id="cms-page-meta" class="cms-meta"></div>
+            <div id="cms-sections-wrap" class="cms-sections-wrap"></div>
+          </section>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="cms-modal" class="cms-modal" aria-hidden="true">
+    <div class="cms-modal-backdrop" data-close-modal="true"></div>
+    <div class="cms-modal-dialog">
+      <div class="cms-modal-head">
+        <h3 id="cms-modal-title">Editar</h3>
+        <button class="cms-icon-btn" data-close-modal="true" aria-label="Cerrar">✕</button>
       </div>
+      <div id="cms-modal-body" class="cms-modal-body"></div>
+    </div>
+  </div>
 
-      <div id="dashboard-view" style="display:none;">
-        <span class="badge">Backoffice</span>
-        <h1 class="section-title">Carga de motos, hero y news</h1>
-        <p class="section-lead">Las imágenes que subas desde acá se guardan en <strong>backend/uploads/</strong>. Si prefieres carga manual, también puedes dejar assets en <strong>frontend/images/</strong>.</p>
-
-        <div class="kpi-grid">
-          <div class="kpi-card"><small>Productos</small><h2 id="kpi-products">0</h2></div>
-          <div class="kpi-card"><small>Destacados</small><h2 id="kpi-featured">0</h2></div>
-          <div class="kpi-card"><small>Stock total</small><h2 id="kpi-stock">0</h2></div>
+  <template id="tpl-section-card">
+    <article class="cms-section-card">
+      <div class="cms-section-card-head">
+        <div>
+          <span class="badge badge-dark js-layout"></span>
+          <h3 class="js-name"></h3>
+          <p class="js-section-key"></p>
+          <div class="js-section-helper"></div>
         </div>
-
-        <div class="admin-layout">
-          <div style="display:grid; gap:24px;">
-            <div class="admin-panel" style="padding:24px;">
-              <h2 style="margin-top:0;">Cargar / editar producto</h2>
-              <form id="product-form" class="form-grid" enctype="multipart/form-data">
-                <div class="field full"><label>Nombre</label><input name="name" required placeholder="Ej: KAYO T4 250 cc"></div>
-                <div class="field"><label>Marca</label><input name="brand" value="KAYO"></div>
-                <div class="field"><label>Categoría</label><select name="category"><option>Enduro</option><option>Pit Bike</option><option>Mini</option><option>ATV</option></select></div>
-                <div class="field"><label>Estado comercial</label><select name="status"><option>Disponible</option><option>Consultar</option><option>Por pedido</option><option>Sin stock</option></select></div>
-                <div class="field"><label>Orden</label><input name="sort_order" type="number" value="100"></div>
-
-                <div class="field"><label>Cilindrada</label><input name="engine_cc"></div>
-                <div class="field"><label>Tipo motor</label><input name="engine_type" placeholder="4 tiempos"></div>
-                <div class="field"><label>Refrigeración</label><input name="cooling"></div>
-                <div class="field"><label>Transmisión</label><input name="transmission"></div>
-                <div class="field"><label>Arranque</label><input name="start_type"></div>
-                <div class="field"><label>Suspensión delantera</label><input name="suspension_front"></div>
-                <div class="field"><label>Suspensión trasera</label><input name="suspension_rear"></div>
-                <div class="field"><label>Altura asiento</label><input name="seat_height"></div>
-                <div class="field"><label>Peso</label><input name="weight_kg"></div>
-                <div class="field"><label>Stock</label><input name="stock" type="number"></div>
-                <div class="field"><label>Precio CLP</label><input name="price" type="number" placeholder="Vacío = consultar"></div>
-                <div class="field"><label>Precio anterior</label><input name="old_price" type="number"></div>
-                <div class="field"><label>Link de pago</label><input name="payment_link" placeholder="https://..."></div>
-                <div class="field"><label>Brochure / ficha PDF</label><input name="brochure_url" placeholder="/docs/ficha.pdf o URL"></div>
-                <div class="field"><label>Destacado</label><select name="featured"><option value="true">Sí</option><option value="false">No</option></select></div>
-
-                <div class="field"><label>Frenos</label><input id="spec_frenos" placeholder="Disco hidráulico delantero y trasero"></div>
-                <div class="field"><label>Llantas</label><input id="spec_llantas" placeholder="21 / 18 o 17 / 14"></div>
-                <div class="field"><label>Combustible</label><input id="spec_combustible" placeholder="5.5 L"></div>
-                <div class="field"><label>Potencia</label><input id="spec_potencia" placeholder="16 hp"></div>
-                <div class="field"><label>Observación</label><input id="spec_observacion" placeholder="Garantía, uso, detalle comercial"></div>
-
-                <div class="field full"><label>Descripción corta</label><textarea name="short_description"></textarea></div>
-                <div class="field full"><label>Descripción larga</label><textarea name="description"></textarea></div>
-                <div class="field full"><label>Galería extra (una URL por línea)</label><textarea name="gallery_urls" placeholder="/uploads/foto-2.jpg&#10;/uploads/foto-3.jpg"></textarea></div>
-                <div class="field full"><label>Imagen principal</label><input name="image" type="file" accept="image/*"></div>
-                <div class="field full"><button class="btn btn-block" type="submit">Guardar producto</button></div>
-              </form>
-            </div>
-
-            <div class="admin-panel" style="padding:24px;">
-              <h2 style="margin-top:0;">Publicar noticia</h2>
-              <form id="news-form" class="form-grid">
-                <div class="field full"><label>Título</label><input id="news_title" required></div>
-                <div class="field"><label>Fecha publicación</label><input id="news_published_at" type="date"></div>
-                <div class="field"><label>Imagen URL</label><input id="news_image" placeholder="/images/news/news-1.jpg"></div>
-                <div class="field full"><label>Extracto</label><textarea id="news_excerpt"></textarea></div>
-                <div class="field full"><label>Contenido</label><textarea id="news_content" required></textarea></div>
-                <div class="field full"><button class="btn btn-block" type="submit">Publicar noticia</button></div>
-              </form>
-            </div>
-          </div>
-
-          <div style="display:grid; gap:24px;">
-            <div class="admin-panel" style="padding:24px;">
-              <h2 style="margin-top:0;">Productos cargados</h2>
-              <div id="admin-products" class="admin-list"></div>
-            </div>
-
-            <div class="admin-panel" style="padding:24px;">
-              <h2 style="margin-top:0;">Hero dinámico</h2>
-              <form id="hero-form" class="form-grid" enctype="multipart/form-data">
-                <div class="field full"><label>Título</label><input name="title" required></div>
-                <div class="field full"><label>Subtítulo</label><textarea name="subtitle"></textarea></div>
-                <div class="field"><label>Texto botón</label><input name="cta_label" value="Ver catálogo"></div>
-                <div class="field"><label>URL botón</label><input name="cta_url" value="productos.html"></div>
-                <div class="field"><label>Orden</label><input name="sort_order" type="number" value="1"></div>
-                <div class="field full"><label>Imagen hero</label><input name="image" type="file" accept="image/*"></div>
-                <div class="field full"><button class="btn btn-block" type="submit">Guardar slide</button></div>
-              </form>
-              <div id="hero-list" class="admin-list" style="margin-top:18px;"></div>
-            </div>
-          </div>
+        <div class="cms-card-actions">
+          <button class="btn btn-dark js-edit-section" type="button">Editar sección</button>
+          <button class="btn js-new-item" type="button">Nuevo ítem</button>
         </div>
+      </div>
+      <div class="cms-section-copy">
+        <h4 class="js-title"></h4>
+        <p class="js-subtitle"></p>
+        <div class="js-content"></div>
+      </div>
+      <div class="cms-item-list js-items"></div>
+    </article>
+  </template>
+
+  <template id="tpl-item-card">
+    <div class="cms-item-card">
+      <div class="cms-item-top">
+        <div>
+          <div class="cms-item-headline">
+            <span class="cms-chip js-tag"></span>
+            <span class="cms-state js-state"></span>
+          </div>
+          <h5 class="js-title"></h5>
+          <small class="js-key"></small>
+        </div>
+        <div class="cms-card-actions">
+          <button class="btn btn-dark js-edit-item" type="button">Editar</button>
+          <button class="btn btn-outline js-delete-item" type="button">Eliminar</button>
+        </div>
+      </div>
+      <div class="cms-quick-actions js-quick-actions"></div>
+      <div class="cms-item-grid">
+        <div class="js-copy"></div>
+        <div class="js-image-wrap"></div>
       </div>
     </div>
-  </section>
+  </template>
 
-  <script src="js/site-config.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

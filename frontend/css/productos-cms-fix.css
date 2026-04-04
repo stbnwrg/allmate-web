@@ -1,0 +1,155 @@
+.products-hero-cms .section-lead {
+  max-width: 780px;
+}
+
+.product-grid-cms {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  align-items: stretch;
+}
+
+.product-card-cms {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(180deg, rgba(12,12,14,0.98) 0%, rgba(4,4,6,1) 100%);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.24);
+}
+
+.product-card-media {
+  aspect-ratio: 1 / 0.88;
+  background: #f2f2f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.product-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  padding: 14px;
+}
+
+.product-card-media.is-empty {
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.55);
+}
+
+.product-card-placeholder {
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 24px;
+}
+
+.product-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 20px;
+}
+
+.product-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-badge {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255,255,255,0.12);
+}
+
+.product-card-badges .product-badge:nth-child(2) {
+  background: rgba(245,130,32,0.18);
+  color: #ffb26b;
+}
+
+.product-card-badges .product-badge:last-child {
+  background: rgba(112, 234, 153, 0.18);
+  color: #b0ffc7;
+}
+
+.product-card-cms h3 {
+  margin: 0;
+  font-size: clamp(1.65rem, 2.3vw, 2.1rem);
+  line-height: 0.98;
+  text-transform: uppercase;
+}
+
+.product-card-cms p {
+  margin: 0;
+  color: rgba(255,255,255,0.82);
+  min-height: 66px;
+}
+
+.product-card-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.product-card-price-row strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.old-price {
+  color: rgba(255,255,255,0.45);
+  text-decoration: line-through;
+}
+
+.btn-block {
+  width: 100%;
+  justify-content: center;
+}
+
+.repuestos-cms-section {
+  margin-top: 24px;
+}
+
+.repuestos-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.repuestos-copy p,
+.repuestos-copy .cms-richtext {
+  color: #2f3238;
+}
+
+@media (max-width: 1080px) {
+  .product-grid-cms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .repuestos-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .product-grid-cms {
+    grid-template-columns: 1fr;
+  }
+  .product-card-cms h3 {
+    font-size: 1.7rem;
+  }
+  .product-card-price-row strong {
+    font-size: 1.7rem;
+  }
+}
