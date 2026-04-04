@@ -213,7 +213,7 @@
         logo: image,
         image,
         telephone: "+56 9 9217 8719",
-        email: "erojas@esterospa.cl",
+        email: "contacto@allmate.cl",
         address: {
           "@type": "PostalAddress",
           streetAddress: "Calle Corcovado #991, Cerro Santa Elena",

@@ -6,7 +6,7 @@ window.SITE_CONFIG = {
   "contact": {
     "address": "Calle Corcovado #991, Cerro Santa Elena, Coronel, Región del Biobío",
     "telephone": "+56 9 9217 8719",
-    "email": "erojas@esterospa.cl",
+    "email": "contacto@allmate.cl",
     "instagram": "https://www.instagram.com/allmatemotors.cl/",
     "whatsapp": "https://wa.me/56992178719?text=Hola%20Allmate%2C%20quiero%20informaci%C3%B3n%20sobre%20motos%20KAYO%20en%20Biob%C3%ADo.",
     "mapEmbed": "https://www.google.com/maps?q=Calle%20Corcovado%20991%20Coronel%20Chile&output=embed",

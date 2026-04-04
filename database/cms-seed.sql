@@ -65,7 +65,7 @@ SELECT s.id, x.item_key, x.title, x.content, x.button_label, x.button_url, x.ico
 FROM s,
 (VALUES
 ('whatsapp', 'WhatsApp', '+56 9 9217 8719', 'Escribir ahora', 'https://wa.me/56992178719', 'whatsapp', 10),
-('correo', 'Correo', 'erojas@esterospa.cl', 'Enviar correo', 'mailto:erojas@esterospa.cl', 'mail', 20),
+('correo', 'Correo', 'contacto@allmate.cl', 'Enviar correo', 'mailto:contacto@allmate.cl', 'mail', 20),
 ('direccion', 'Dirección', 'Calle Corcovado #991, Cerro Santa Elena, Coronel', 'Ver mapa', 'https://maps.app.goo.gl/Qd9GY7afANL3JM3a6', 'map-pin', 30),
 ('instagram', 'Instagram', '@allmatemotors.cl', 'Ver Instagram', 'https://instagram.com/allmatemotors.cl', 'instagram', 40)
 ) AS x(item_key, title, content, button_label, button_url, icon, sort_order)
@@ -78,7 +78,7 @@ VALUES
 ('business_tagline', 'Distribuidor oficial KAYO', 'branding', TRUE),
 ('site_phone', '+56 9 9217 8719', 'contacto', TRUE),
 ('site_whatsapp', 'https://wa.me/56992178719', 'contacto', TRUE),
-('site_email', 'erojas@esterospa.cl', 'contacto', TRUE),
+('site_email', 'contacto@allmate.cl', 'contacto', TRUE),
 ('site_instagram', 'https://instagram.com/allmatemotors.cl', 'contacto', TRUE),
 ('site_address', 'Calle Corcovado #991, Cerro Santa Elena, Coronel', 'contacto', TRUE),
 ('site_region', 'Región del Biobío', 'contacto', TRUE),
