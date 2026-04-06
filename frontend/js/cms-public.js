@@ -189,6 +189,7 @@
     qsa('[data-whatsapp-label]').forEach(el => { if (flat.site_phone) el.textContent = flat.site_phone; });
     qsa('[data-whatsapp-link]').forEach(el => { if (flat.site_whatsapp) el.href = flat.site_whatsapp; });
     qsa('[data-contact-email]').forEach(el => { if (flat.site_email) el.textContent = flat.site_email; });
+    qsa('[data-contact-email-link]').forEach(el => { if (flat.site_email) el.href = `mailto:${flat.site_email}`; });
     qsa('[data-instagram-link]').forEach(el => { if (flat.site_instagram) el.href = flat.site_instagram; });
     qsa('[data-instagram-label]').forEach(el => { if (flat.site_instagram_label) el.textContent = flat.site_instagram_label; });
     qsa('[data-branch-name]').forEach(el => { if (flat.site_address) el.textContent = flat.site_address; });
