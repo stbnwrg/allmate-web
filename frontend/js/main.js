@@ -183,6 +183,9 @@ function populateFooter() {
   qsa('[data-whatsapp-link]').forEach(el => el.href = SITE.contact.whatsapp);
   qsa('[data-whatsapp-label]').forEach(el => el.textContent = SITE.contact.telephone);
   qsa('[data-contact-email]').forEach(el => el.textContent = SITE.contact.email);
+  qsa('[data-contact-email-link]').forEach(el => {
+  el.href = `mailto:${SITE.contact.email}`;
+});
 }
 
 function setupLoader() {

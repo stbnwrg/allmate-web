@@ -28,7 +28,7 @@ router.post('/', async (req, res) => {
 
       await transporter.sendMail({
         from: `Sitio Allmate <${process.env.SMTP_USER}>`,
-        to: process.env.CONTACT_RECEIVER || process.env.SMTP_USER,
+        to: process.env.CONTACT_RECEIVER || "contacto@allmate.cl",
         replyTo: email,
         subject: `[Web Allmate] ${subject || 'Nuevo contacto'}`,
         html: `
