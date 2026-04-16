@@ -343,3 +343,92 @@
   .cms-modal-dialog { margin: 20px 10px; }
   .cms-quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.cms-entity-card {
+  overflow: hidden;
+}
+
+.cms-entity-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.cms-entity-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+}
+
+.cms-entity-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cms-entity-head h4 {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+}
+
+.cms-entity-head small {
+  color: rgba(255,255,255,.58);
+}
+
+.cms-entity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+
+.cms-chip-muted {
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.66);
+  border: 1px solid rgba(255,255,255,.14);
+}
+
+.cms-entity-copy {
+  margin: 0;
+  color: rgba(255,255,255,.72);
+}
+
+.cms-entity-prices {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cms-entity-prices strong {
+  color: #fff;
+  font-size: 18px;
+}
+
+.cms-entity-prices span {
+  color: rgba(255,255,255,.5);
+  text-decoration: line-through;
+}
+
+.cms-entity-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 160px;
+}
+
+@media (max-width: 780px) {
+  .cms-entity-item {
+    grid-template-columns: 1fr;
+  }
+
+  .cms-entity-actions {
+    min-width: 0;
+  }
+}

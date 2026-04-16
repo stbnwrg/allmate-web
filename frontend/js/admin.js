@@ -6,6 +6,8 @@ const state = {
   currentPage: null,
   sections: [],
   settings: [],
+  products: [],
+  news: [],
 };
 
 function getToken() {
@@ -40,8 +42,31 @@ function escapeHtml(value = '') {
     .replace(/'/g, '&#039;');
 }
 
+function formatMoney(value) {
+  if (value === null || value === undefined || value === '') return 'Sin precio';
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return 'Sin precio';
+  return `$${parsed.toLocaleString('es-CL')}`;
+}
+
+function toInputDateTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (num) => String(num).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function isMediaSection(section) {
   return MEDIA_SECTIONS.includes(section.section_key);
+}
+
+function getEntityMode() {
+  if (!state.currentPageSlug) return null;
+  if (state.currentPageSlug === 'productos') return 'products';
+  if (state.currentPageSlug === 'ofertas') return 'offers';
+  if (state.currentPageSlug === 'news') return 'news';
+  return null;
 }
 
 function renderPageNav() {
@@ -72,6 +97,21 @@ function renderMeta() {
   `;
 }
 
+function getSectionHelperText(section) {
+  if (state.currentPageSlug === 'productos') {
+    return '<span class="cms-inline-hint">Aquí editas el copy y la estructura de la página. El catálogo real se administra más abajo en el gestor de productos.</span>';
+  }
+  if (state.currentPageSlug === 'ofertas') {
+    return '<span class="cms-inline-hint">Aquí editas el encabezado y copy de la página. Las ofertas reales se administran más abajo desde productos con precio anterior.</span>';
+  }
+  if (state.currentPageSlug === 'news') {
+    return '<span class="cms-inline-hint">Aquí editas el marco editorial de la página. Las noticias reales se administran más abajo en el gestor de noticias.</span>';
+  }
+  return isMediaSection(section)
+    ? '<span class="cms-inline-hint">Sección multimedia: agrega, cambia, reordena y activa/desactiva slides e imágenes sin tocar código.</span>'
+    : '<span class="cms-inline-hint">Sección de contenido: puedes editar copy, CTAs, imagen y estado de cada bloque.</span>';
+}
+
 function renderSectionCard(section) {
   const tpl = document.getElementById('tpl-section-card');
   const node = tpl.content.firstElementChild.cloneNode(true);
@@ -85,11 +125,7 @@ function renderSectionCard(section) {
   node.querySelector('.js-new-item').addEventListener('click', () => openItemModal(section, null));
 
   const helper = node.querySelector('.js-section-helper');
-  if (helper) {
-    helper.innerHTML = isMediaSection(section)
-      ? '<span class="cms-inline-hint">Sección multimedia: agrega, cambia, reordena y activa/desactiva slides e imágenes sin tocar código.</span>'
-      : '<span class="cms-inline-hint">Sección de contenido: puedes editar copy, CTAs, imagen y estado de cada bloque.</span>';
-  }
+  if (helper) helper.innerHTML = getSectionHelperText(section);
 
   const itemsWrap = node.querySelector('.js-items');
   if (!section.items?.length) {
@@ -112,8 +148,8 @@ function renderItemCard(section, item, index, total) {
     ${item.subtitle ? `<p><strong>Subtítulo:</strong> ${escapeHtml(item.subtitle)}</p>` : ''}
     ${item.content ? `<div>${item.content}</div>` : ''}
     ${item.button_label ? `<p><strong>Botón:</strong> ${escapeHtml(item.button_label)} → ${escapeHtml(item.button_url || '#')}</p>` : ''}
-    ${item.price ? `<p><strong>Precio:</strong> $${Number(item.price).toLocaleString('es-CL')}</p>` : ''}
-    ${item.old_price ? `<p><strong>Precio anterior:</strong> $${Number(item.old_price).toLocaleString('es-CL')}</p>` : ''}
+    ${item.price ? `<p><strong>Precio:</strong> ${formatMoney(item.price)}</p>` : ''}
+    ${item.old_price ? `<p><strong>Precio anterior:</strong> ${formatMoney(item.old_price)}</p>` : ''}
   `;
   const imageWrap = node.querySelector('.js-image-wrap');
   imageWrap.innerHTML = item.image_url
@@ -147,16 +183,180 @@ function renderItemCard(section, item, index, total) {
   return node;
 }
 
+function renderProductRow(product, mode = 'products') {
+  const offerActive = product.old_price && Number(product.old_price) > Number(product.price || 0);
+  const chips = [
+    `<span class="cms-chip">${escapeHtml(product.category || 'Sin categoría')}</span>`,
+    `<span class="cms-chip ${product.is_active ? '' : 'cms-chip-muted'}">${product.is_active ? 'Activo' : 'Oculto'}</span>`,
+    product.featured ? '<span class="cms-chip">Destacado</span>' : '',
+    offerActive ? '<span class="cms-chip">Oferta</span>' : '',
+  ].filter(Boolean).join('');
+
+  return `
+    <article class="cms-entity-item">
+      <div class="cms-entity-main">
+        <div class="cms-entity-head">
+          <h4>${escapeHtml(product.name)}</h4>
+          <small>${escapeHtml(product.slug)}</small>
+        </div>
+        <div class="cms-entity-meta">${chips}</div>
+        <p class="cms-entity-copy">${escapeHtml(product.short_description || product.description || 'Sin descripción corta.')}</p>
+        <div class="cms-entity-prices">
+          <strong>${formatMoney(product.price)}</strong>
+          ${product.old_price ? `<span>${formatMoney(product.old_price)}</span>` : ''}
+        </div>
+      </div>
+      <div class="cms-entity-actions">
+        <button class="btn btn-dark js-edit-product" data-product-id="${product.id}" type="button">Editar</button>
+        ${mode === 'offers' && offerActive ? `<button class="btn btn-outline js-remove-offer" data-product-id="${product.id}" type="button">Quitar oferta</button>` : ''}
+        <button class="btn btn-outline js-toggle-product" data-product-id="${product.id}" type="button">${product.is_active ? 'Ocultar' : 'Activar'}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderNewsRow(article) {
+  return `
+    <article class="cms-entity-item">
+      <div class="cms-entity-main">
+        <div class="cms-entity-head">
+          <h4>${escapeHtml(article.title)}</h4>
+          <small>${escapeHtml(article.slug)}</small>
+        </div>
+        <div class="cms-entity-meta">
+          <span class="cms-chip ${article.is_active ? '' : 'cms-chip-muted'}">${article.is_active ? 'Publicado' : 'Oculto'}</span>
+          <span class="cms-chip">${escapeHtml(article.author || 'Allmate Motors')}</span>
+          <span class="cms-chip">${new Date(article.published_at).toLocaleDateString('es-CL')}</span>
+        </div>
+        <p class="cms-entity-copy">${escapeHtml(article.excerpt || 'Sin extracto.')}</p>
+      </div>
+      <div class="cms-entity-actions">
+        <button class="btn btn-dark js-edit-news" data-news-id="${article.id}" type="button">Editar</button>
+        <button class="btn btn-outline js-toggle-news" data-news-id="${article.id}" type="button">${article.is_active ? 'Ocultar' : 'Activar'}</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderEntityManager() {
+  const mode = getEntityMode();
+  if (!mode) return null;
+
+  const card = document.createElement('article');
+  card.className = 'cms-section-card cms-entity-card';
+
+  if (mode === 'products' || mode === 'offers') {
+    const source = mode === 'offers'
+      ? state.products.filter((item) => item.old_price && Number(item.old_price) > Number(item.price || 0))
+      : state.products;
+
+    card.innerHTML = `
+      <div class="cms-section-card-head">
+        <div>
+          <span class="badge badge-dark">${mode === 'offers' ? 'Ofertas reales' : 'Catálogo real'}</span>
+          <h3>${mode === 'offers' ? 'Gestor de ofertas' : 'Gestor de productos'}</h3>
+          <p class="cms-section-key">${mode === 'offers' ? 'Las ofertas salen de productos con precio y precio anterior.' : 'CRUD real sobre la tabla products, sin depender de cms_items.'}</p>
+        </div>
+        <div class="cms-card-actions">
+          <button class="btn js-new-product" type="button">${mode === 'offers' ? 'Nueva oferta' : 'Nuevo producto'}</button>
+        </div>
+      </div>
+      <div class="cms-entity-list ${source.length ? '' : 'is-empty'}">
+        ${source.length ? source.map((item) => renderProductRow(item, mode)).join('') : `<div class="empty-state">${mode === 'offers' ? 'Aún no hay productos con oferta activa. Edita un producto y define price + old_price.' : 'No hay productos cargados todavía.'}</div>`}
+      </div>
+    `;
+
+    card.querySelector('.js-new-product')?.addEventListener('click', () => openProductModal(mode === 'offers'));
+    card.querySelectorAll('.js-edit-product').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const product = state.products.find((item) => String(item.id) === btn.dataset.productId);
+        openProductModal(mode === 'offers', product);
+      });
+    });
+    card.querySelectorAll('.js-toggle-product').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const product = state.products.find((item) => String(item.id) === btn.dataset.productId);
+        if (!product) return;
+        try {
+          await saveProduct({ ...product, is_active: !product.is_active }, null, true);
+          await loadPageDetail(state.currentPageSlug);
+          setAlert(`Producto ${product.is_active ? 'ocultado' : 'activado'} correctamente.`);
+        } catch (error) {
+          setAlert(error.message, 'error');
+        }
+      });
+    });
+    card.querySelectorAll('.js-remove-offer').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const product = state.products.find((item) => String(item.id) === btn.dataset.productId);
+        if (!product) return;
+        try {
+          await saveProduct({ ...product, old_price: null }, null, true);
+          await loadPageDetail(state.currentPageSlug);
+          setAlert('Oferta eliminada del producto.');
+        } catch (error) {
+          setAlert(error.message, 'error');
+        }
+      });
+    });
+    return card;
+  }
+
+  if (mode === 'news') {
+    card.innerHTML = `
+      <div class="cms-section-card-head">
+        <div>
+          <span class="badge badge-dark">Noticias reales</span>
+          <h3>Gestor de noticias</h3>
+          <p class="cms-section-key">CRUD real sobre la tabla news. Desde aquí se controlan las tarjetas y páginas individuales.</p>
+        </div>
+        <div class="cms-card-actions">
+          <button class="btn js-new-news" type="button">Nueva noticia</button>
+        </div>
+      </div>
+      <div class="cms-entity-list ${state.news.length ? '' : 'is-empty'}">
+        ${state.news.length ? state.news.map(renderNewsRow).join('') : '<div class="empty-state">No hay noticias cargadas todavía.</div>'}
+      </div>
+    `;
+
+    card.querySelector('.js-new-news')?.addEventListener('click', () => openNewsModal());
+    card.querySelectorAll('.js-edit-news').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const article = state.news.find((item) => String(item.id) === btn.dataset.newsId);
+        openNewsModal(article);
+      });
+    });
+    card.querySelectorAll('.js-toggle-news').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const article = state.news.find((item) => String(item.id) === btn.dataset.newsId);
+        if (!article) return;
+        try {
+          await saveNews({ ...article, is_active: !article.is_active }, true);
+          await loadPageDetail(state.currentPageSlug);
+          setAlert(`Noticia ${article.is_active ? 'ocultada' : 'activada'} correctamente.`);
+        } catch (error) {
+          setAlert(error.message, 'error');
+        }
+      });
+    });
+    return card;
+  }
+
+  return null;
+}
+
 function renderSections() {
   const wrap = document.getElementById('cms-sections-wrap');
   document.getElementById('cms-page-title').textContent = state.currentPage?.name || 'Selecciona una página';
   renderMeta();
+  wrap.innerHTML = '';
   if (!state.sections.length) {
     wrap.innerHTML = '<div class="empty-state">Esta página todavía no tiene secciones.</div>';
-    return;
+  } else {
+    state.sections.forEach((section) => wrap.appendChild(renderSectionCard(section)));
   }
-  wrap.innerHTML = '';
-  state.sections.forEach((section) => wrap.appendChild(renderSectionCard(section)));
+  const entityManager = renderEntityManager();
+  if (entityManager) wrap.appendChild(entityManager);
 }
 
 async function loginAdmin(event) {
@@ -189,6 +389,21 @@ async function bootDashboard() {
   }
 }
 
+async function loadEntityDataForPage(slug) {
+  if (slug === 'productos' || slug === 'ofertas') {
+    state.products = await api('/productos/admin');
+    state.news = [];
+    return;
+  }
+  if (slug === 'news') {
+    state.news = await api('/news/admin');
+    state.products = [];
+    return;
+  }
+  state.products = [];
+  state.news = [];
+}
+
 async function loadPageDetail(slug) {
   try {
     const payload = await api(`/admin/cms/pages/${slug}`);
@@ -196,6 +411,7 @@ async function loadPageDetail(slug) {
     state.currentPage = payload.page;
     state.sections = payload.sections;
     state.settings = payload.settings;
+    await loadEntityDataForPage(slug);
     renderPageNav();
     renderSections();
   } catch (error) {
@@ -269,12 +485,15 @@ function openPageModal(page) {
   `, (body) => {
     body.querySelector('#cms-page-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const form = event.currentTarget;
-      const payload = Object.fromEntries(new FormData(form).entries());
+      const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
       payload.is_active = payload.is_active === 'true';
       payload.sort_order = Number(payload.sort_order || 100);
       try {
-        await api('/admin/cms/pages', { method: 'POST', body: JSON.stringify(payload) });
+        if (page?.id) {
+          await api(`/admin/cms/pages/${page.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+          await api('/admin/cms/pages', { method: 'POST', body: JSON.stringify(payload) });
+        }
         closeModal();
         state.pages = await api('/admin/cms/pages');
         renderPageNav();
@@ -310,13 +529,16 @@ function openSectionModal(section) {
     bindToolbar(body);
     body.querySelector('#cms-section-form').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const form = event.currentTarget;
-      const payload = Object.fromEntries(new FormData(form).entries());
+      const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
       payload.is_active = payload.is_active === 'true';
       payload.sort_order = Number(payload.sort_order || 100);
       payload.content = body.querySelector('#section-content-editor').innerHTML;
       try {
-        await api('/admin/cms/sections', { method: 'POST', body: JSON.stringify(payload) });
+        if (section?.id) {
+          await api(`/admin/cms/sections/${section.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+          await api('/admin/cms/sections', { method: 'POST', body: JSON.stringify(payload) });
+        }
         closeModal();
         await loadPageDetail(state.currentPageSlug);
         setAlert('Sección guardada correctamente.');
@@ -328,9 +550,9 @@ function openSectionModal(section) {
 }
 
 function getMediaFolder(section) {
-  if (section.section_key === 'hero') return 'hero';
-  if (section.section_key === 'carrusel_visual') return 'carrusel';
-  return section.section_key || 'general';
+  if (section?.section_key === 'hero') return 'hero';
+  if (section?.section_key === 'carrusel_visual') return 'carrusel';
+  return section?.section_key || 'general';
 }
 
 async function uploadCmsImage(file, folder, altText = '') {
@@ -353,7 +575,6 @@ function buildMediaHelper(section) {
 
 function openItemModal(section, item) {
   const extra = item?.extra_json || {};
-  const isMedia = isMediaSection(section);
   openModal(item ? `Editar ítem: ${item.title || item.item_key}` : `Nuevo ítem en ${section.name}`, `
     <form id="cms-item-form" class="cms-form-grid">
       <input type="hidden" name="id" value="${item?.id || ''}">
@@ -438,7 +659,11 @@ function openItemModal(section, item) {
         return setAlert('El campo JSON extra no tiene formato válido.', 'error');
       }
       try {
-        await api('/admin/cms/items', { method: 'POST', body: JSON.stringify(payload) });
+        if (item?.id) {
+          await api(`/admin/cms/items/${item.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+          await api('/admin/cms/items', { method: 'POST', body: JSON.stringify(payload) });
+        }
         closeModal();
         await loadPageDetail(state.currentPageSlug);
         setAlert('Ítem guardado correctamente.');
@@ -484,7 +709,7 @@ function openImageModal(section, item) {
           image_alt: body.querySelector('#image-alt-quick').value || item.title || '',
           extra_json: item.extra_json || {},
         };
-        await api('/admin/cms/items', { method: 'POST', body: JSON.stringify(payload) });
+        await api(`/admin/cms/items/${item.id}`, { method: 'PUT', body: JSON.stringify(payload) });
         closeModal();
         await loadPageDetail(state.currentPageSlug);
         setAlert('Imagen actualizada correctamente.');
@@ -496,6 +721,120 @@ function openImageModal(section, item) {
       }
     });
   });
+}
+
+function openProductModal(isOfferMode = false, product = null) {
+  const isEdit = !!product;
+  const galleryValue = Array.isArray(product?.gallery) ? product.gallery.join('\n') : '';
+  const specsValue = product?.specs ? JSON.stringify(product.specs, null, 2) : '{}';
+  openModal(isEdit ? `Editar producto: ${product.name}` : (isOfferMode ? 'Nueva oferta' : 'Nuevo producto'), `
+    <form id="product-form" class="cms-form-grid">
+      <div class="full cms-media-helper">
+        <strong>${isOfferMode ? 'Modo oferta' : 'Modo producto'}</strong>
+        <p>${isOfferMode ? 'Las ofertas reales se construyen sobre productos. Para que aparezcan en la página de ofertas, define precio y precio anterior.' : 'Este formulario modifica la tabla products real. Lo que guardes aquí impacta el catálogo público.'}</p>
+      </div>
+      <div><label>Nombre</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div>
+      <div><label>Slug (opcional)</label><input name="slug" value="${escapeHtml(product?.slug || '')}"></div>
+      <div><label>Categoría</label><input name="category" value="${escapeHtml(product?.category || (isOfferMode ? 'Oferta' : 'Enduro'))}"></div>
+      <div><label>Estado comercial</label><input name="status" value="${escapeHtml(product?.status || 'Disponible')}"></div>
+      <div><label>Orden</label><input name="sort_order" type="number" value="${product?.sort_order ?? 100}"></div>
+      <div><label>Stock</label><input name="stock" type="number" value="${product?.stock ?? 0}"></div>
+      <div><label>Precio actual</label><input name="price" type="number" value="${product?.price ?? ''}"></div>
+      <div><label>Precio anterior</label><input name="old_price" type="number" value="${product?.old_price ?? ''}"></div>
+      <div><label>Marca</label><input name="brand" value="${escapeHtml(product?.brand || 'KAYO')}"></div>
+      <div><label>Motor (cc)</label><input name="engine_cc" type="number" value="${product?.engine_cc ?? ''}"></div>
+      <div><label>Tipo de motor</label><input name="engine_type" value="${escapeHtml(product?.engine_type || '')}"></div>
+      <div><label>Transmisión</label><input name="transmission" value="${escapeHtml(product?.transmission || '')}"></div>
+      <div><label>Encendido</label><input name="start_type" value="${escapeHtml(product?.start_type || '')}"></div>
+      <div><label>Imagen URL</label><input id="product-image-url" name="image_url" value="${escapeHtml(product?.image_url || '')}"></div>
+      <div><label>Subir imagen nueva</label><input id="product-image-file" type="file" accept="image/*"></div>
+      <div><label>Destacado</label><select name="featured"><option value="false" ${product?.featured ? '' : 'selected'}>No</option><option value="true" ${product?.featured ? 'selected' : ''}>Sí</option></select></div>
+      <div><label>Activo</label><select name="is_active"><option value="true" ${product?.is_active === false ? '' : 'selected'}>Sí</option><option value="false" ${product?.is_active === false ? 'selected' : ''}>No</option></select></div>
+      <div class="full"><label>Descripción corta</label><textarea name="short_description">${escapeHtml(product?.short_description || '')}</textarea></div>
+      ${richEditor('Descripción larga', 'product-description-editor', product?.description || '')}
+      <div class="full"><label>Galería (una URL por línea)</label><textarea name="gallery_urls">${escapeHtml(galleryValue)}</textarea></div>
+      <div class="full"><label>Specs JSON</label><textarea name="specs">${escapeHtml(specsValue)}</textarea></div>
+      <div><label>Link pago</label><input name="payment_link" value="${escapeHtml(product?.payment_link || '')}"></div>
+      <div><label>Brochure URL</label><input name="brochure_url" value="${escapeHtml(product?.brochure_url || '')}"></div>
+      <div class="cms-form-actions full">
+        <button type="button" class="btn btn-dark" data-close-modal="true">Cancelar</button>
+        <button type="submit" class="btn">Guardar producto</button>
+      </div>
+    </form>
+  `, (body) => {
+    bindToolbar(body);
+    body.querySelector('#product-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const file = body.querySelector('#product-image-file')?.files?.[0] || null;
+      try {
+        const description = body.querySelector('#product-description-editor').innerHTML;
+        const formData = new FormData(form);
+        formData.set('description', description);
+        if (file) formData.append('image', file);
+        await saveProduct(formData, product?.id || null, true);
+        closeModal();
+        await loadPageDetail(state.currentPageSlug);
+        setAlert('Producto guardado correctamente.');
+      } catch (error) {
+        setAlert(error.message, 'error');
+      }
+    });
+  });
+}
+
+async function saveProduct(payload, productId = null, isFormData = false) {
+  const path = productId ? `/productos/${productId}` : '/productos';
+  return api(path, { method: productId ? 'PUT' : 'POST', body: payload, headers: isFormData ? {} : undefined });
+}
+
+function openNewsModal(article = null) {
+  openModal(article ? `Editar noticia: ${article.title}` : 'Nueva noticia', `
+    <form id="news-form" class="cms-form-grid">
+      <div><label>Título</label><input name="title" required value="${escapeHtml(article?.title || '')}"></div>
+      <div><label>Slug (opcional)</label><input name="slug" value="${escapeHtml(article?.slug || '')}"></div>
+      <div><label>Autor</label><input name="author" value="${escapeHtml(article?.author || 'Allmate Motors')}"></div>
+      <div><label>Fecha publicación</label><input name="published_at" type="datetime-local" value="${toInputDateTime(article?.published_at)}"></div>
+      <div><label>Activo</label><select name="is_active"><option value="true" ${article?.is_active === false ? '' : 'selected'}>Sí</option><option value="false" ${article?.is_active === false ? 'selected' : ''}>No</option></select></div>
+      <div><label>Imagen URL</label><input id="news-image-url" name="image_url" value="${escapeHtml(article?.image_url || '')}"></div>
+      <div><label>Subir imagen</label><input id="news-image-file" type="file" accept="image/*"></div>
+      <div class="full"><label>Extracto</label><textarea name="excerpt">${escapeHtml(article?.excerpt || '')}</textarea></div>
+      ${richEditor('Contenido noticia', 'news-content-editor', article?.content || '')}
+      <div class="cms-form-actions full">
+        <button type="button" class="btn btn-dark" data-close-modal="true">Cancelar</button>
+        <button type="submit" class="btn">Guardar noticia</button>
+      </div>
+    </form>
+  `, (body) => {
+    bindToolbar(body);
+    body.querySelector('#news-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+      payload.content = body.querySelector('#news-content-editor').innerHTML;
+      try {
+        const file = body.querySelector('#news-image-file')?.files?.[0] || null;
+        if (file) {
+          const upload = await uploadCmsImage(file, 'news', payload.title || 'noticia');
+          payload.image_url = upload.file_url;
+        }
+        await saveNews(payload, false, article?.id || null);
+        closeModal();
+        await loadPageDetail('news');
+        setAlert('Noticia guardada correctamente.');
+      } catch (error) {
+        setAlert(error.message, 'error');
+      }
+    });
+  });
+}
+
+async function saveNews(payload, partial = false, articleId = null) {
+  const normalized = partial ? payload : {
+    ...payload,
+    is_active: payload.is_active === true || payload.is_active === 'true',
+  };
+  const path = articleId ? `/news/admin/${articleId}` : '/news/admin';
+  return api(path, { method: articleId ? 'PUT' : 'POST', body: JSON.stringify(normalized) });
 }
 
 async function moveItem(itemId, direction) {
@@ -550,9 +889,9 @@ function openSettingsModal() {
 function openSettingEditor(setting) {
   openModal(`Editar setting: ${setting.setting_key}`, `
     <form id="cms-setting-form" class="cms-form-grid">
-      <div><label>Grupo</label><input name="setting_group" value="${setting.setting_group || 'general'}"></div>
+      <div><label>Grupo</label><input name="setting_group" value="${escapeHtml(setting.setting_group || 'general')}"></div>
       <div><label>Público</label><select name="is_public"><option value="true" ${setting.is_public !== false ? 'selected' : ''}>Sí</option><option value="false" ${setting.is_public === false ? 'selected' : ''}>No</option></select></div>
-      <div class="full"><label>Valor</label><textarea name="setting_value">${setting.setting_value || ''}</textarea></div>
+      <div class="full"><label>Valor</label><textarea name="setting_value">${escapeHtml(setting.setting_value || '')}</textarea></div>
       <div class="cms-form-actions full">
         <button type="button" class="btn btn-dark" data-close-modal="true">Cancelar</button>
         <button type="submit" class="btn">Guardar setting</button>
