@@ -20,151 +20,38 @@
     let meta = document.querySelector(`meta[name="${name}"]`);
     if (!meta) {
       meta = document.createElement('meta');
-      meta.setAttribute('name', name);
+      meta.name = name;
       document.head.appendChild(meta);
     }
     meta.setAttribute('content', content);
   }
   function injectJsonLd(id, data) {
     if (!data) return;
-    const prev = document.getElementById(id);
-    if (prev) prev.remove();
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.id = id;
+    let script = document.getElementById(id);
+    if (!script) {
+      script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.id = id;
+      document.head.appendChild(script);
+    }
     script.textContent = JSON.stringify(data);
-    document.head.appendChild(script);
   }
   function byKey(sections) {
-    return Object.fromEntries((sections || []).map(s => [s.section_key, s]));
+    return (sections || []).reduce((acc, item) => {
+      acc[item.section_key] = item;
+      return acc;
+    }, {});
   }
-  function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
+  function formatDate(date) {
+    if (!date) return '';
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
   }
-
-  function renderHero(section, settings) {
-    if (!section || !qs('#cms-hero-title')) return;
-    qs('#cms-hero-badge').textContent = section.name || 'Hero';
-    qs('#cms-hero-title').textContent = section.title || '';
-    qs('#cms-hero-subtitle').textContent = section.subtitle || '';
-
-    const strip = qs('#cms-hero-strip');
-    if (section.items?.length && strip) {
-      strip.innerHTML = section.items
-        .filter(item => item.is_active)
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map((item, index) => `
-          <div class="strip-item">
-            <div class="strip-icon">${escapeHtml(item.tag || String(index + 1).padStart(2, '0'))}</div>
-            <div>
-              <strong>${escapeHtml(item.title || '')}</strong>
-              <span>${escapeHtml(item.content || item.subtitle || '')}</span>
-            </div>
-          </div>`).join('');
-    }
-
-    const activeSlide = (section.items || []).find(item => item.is_active && item.image_url);
-    if (activeSlide && qs('#cms-hero-background')) {
-      qs('#cms-hero-background').style.backgroundImage = `url('${activeSlide.image_url}')`;
-      qs('#cms-hero-background').style.backgroundSize = 'cover';
-      qs('#cms-hero-background').style.backgroundPosition = 'center';
-      if (activeSlide.button_label && qs('#cms-hero-cta-primary')) qs('#cms-hero-cta-primary').textContent = activeSlide.button_label;
-      if (activeSlide.button_url && qs('#cms-hero-cta-primary')) qs('#cms-hero-cta-primary').setAttribute('href', activeSlide.button_url);
-    }
-
-    injectJsonLd('cms-home-localbusiness', {
-      '@context': 'https://schema.org',
-      '@type': 'MotorcycleDealer',
-      'name': settings.business_name || 'Allmate Motors',
-      'url': window.location.origin + '/',
-      'telephone': settings.site_phone || '',
-      'email': settings.site_email || '',
-      'description': section.content || section.subtitle || '',
-      'address': {
-        '@type': 'PostalAddress',
-        'streetAddress': settings.site_address || '',
-        'addressLocality': 'Coronel',
-        'addressRegion': settings.site_region || 'Región del Biobío',
-        'addressCountry': 'CL'
-      },
-      'areaServed': ['Coronel', 'Concepción', 'Gran Concepción', settings.site_region || 'Región del Biobío'],
-      'sameAs': [settings.site_instagram || '']
-    });
-  }
-
-  function renderCategories(section) {
-    if (!section || !qs('#home-categories')) return;
-    qs('#cms-categories-badge').textContent = section.name || 'Categorías';
-    qs('#cms-categories-title').textContent = section.title || '';
-    qs('#cms-categories-subtitle').textContent = section.subtitle || '';
-
-    const html = (section.items || [])
+  function sectionItems(section) {
+    return (section?.items || [])
       .filter(item => item.is_active)
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map(item => `
-        <article class="category-card">
-          <div class="category-image" style="background-image:url('${item.image_url || ''}')"></div>
-          <div class="category-overlay"></div>
-          <div class="category-content">
-            ${item.tag ? `<span class="category-tag">${escapeHtml(item.tag)}</span>` : ''}
-            <h3>${escapeHtml(item.title || '')}</h3>
-            <p>${escapeHtml(item.content || item.subtitle || '')}</p>
-            ${item.button_label ? `<a class="btn" href="${item.button_url || '#'}">${escapeHtml(item.button_label)}</a>` : ''}
-          </div>
-        </article>`).join('');
-    qs('#cms-categories-grid').innerHTML = html;
-  }
-
-  function renderCarrusel(section) {
-    if (!section || !qs('#cms-marquee-track')) return;
-    const items = (section.items || []).filter(item => item.is_active && item.image_url).sort((a, b) => a.sort_order - b.sort_order);
-    if (!items.length) return;
-    const loopItems = [...items, ...items];
-    qs('#cms-marquee-track').innerHTML = loopItems.map(item => `
-      <article class="visual-marquee-card">
-        <img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Allmate Motors')}" loading="lazy">
-      </article>`).join('');
-  }
-
-  function renderAbout(section) {
-    if (!section || !qs('#cms-about-title')) return;
-    qs('#cms-about-badge').textContent = section.name || 'Quiénes somos';
-    qs('#cms-about-title').textContent = section.title || '';
-    qs('#cms-about-subtitle').textContent = section.subtitle || '';
-    const content = qs('#cms-about-content');
-    if (content) content.innerHTML = section.content || '';
-    const rows = (section.items || []).filter(item => item.is_active).sort((a, b) => a.sort_order - b.sort_order).map((item, index) => `
-      <div class="about-point">
-        <span>${String(index + 1).padStart(2, '0')}</span>
-        <div>
-          <strong>${escapeHtml(item.title || '')}</strong>
-          <p>${escapeHtml(item.content || item.subtitle || '')}</p>
-        </div>
-      </div>`);
-    if (qs('#cms-about-points')) qs('#cms-about-points').innerHTML = rows.join('');
-  }
-
-  function renderContact(section, settings) {
-    if (!section || !qs('#cms-contact-title')) return;
-    qs('#cms-contact-badge').textContent = section.name || 'Contacto y ubicación';
-    qs('#cms-contact-title').textContent = section.title || '';
-    qs('#cms-contact-subtitle').textContent = section.subtitle || '';
-
-    const rows = [];
-    const phone = settings.site_phone || settings.site_whatsapp_label || '';
-    const email = settings.site_email || '';
-    const address = settings.site_address || '';
-    const insta = settings.site_instagram_label || '@allmatemotors.cl';
-
-    if (phone) rows.push(`<div class="contact-item"><div><small>WhatsApp</small><strong>${escapeHtml(phone)}</strong></div><a class="btn btn-dark" href="${settings.site_whatsapp || '#'}" target="_blank" rel="noopener">Escribir ahora</a></div>`);
-    if (email) rows.push(`<div class="contact-item"><div><small>Correo</small><strong>${escapeHtml(email)}</strong></div><a class="btn btn-dark" href="mailto:${escapeHtml(email)}">Enviar correo</a></div>`);
-    if (address) rows.push(`<div class="contact-item"><div><small>Dirección</small><strong>${escapeHtml(address)}</strong></div><a class="btn btn-dark" href="${settings.google_maps_link || '#'}" target="_blank" rel="noopener">Ver mapa</a></div>`);
-    rows.push(`<div class="contact-item compact"><div><small>Instagram</small><strong>${escapeHtml(insta)}</strong></div><a class="btn btn-dark" href="${settings.site_instagram || '#'}" target="_blank" rel="noopener">Ver perfil</a></div>`);
-    if (rows.length) qs('#cms-contact-items').innerHTML = rows.join('');
-    if (settings.google_maps_embed && qs('#cms-contact-map')) qs('#cms-contact-map').src = settings.google_maps_embed;
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
   }
 
   function applyPageSeo(page) {
@@ -193,7 +80,185 @@
     qsa('[data-instagram-link]').forEach(el => { if (flat.site_instagram) el.href = flat.site_instagram; });
     qsa('[data-instagram-label]').forEach(el => { if (flat.site_instagram_label) el.textContent = flat.site_instagram_label; });
     qsa('[data-branch-name]').forEach(el => { if (flat.site_address) el.textContent = flat.site_address; });
+    qsa('[data-payment-link]').forEach(el => { if (flat.general_payment_link) el.href = flat.general_payment_link; });
     return flat;
+  }
+
+  function renderHero(section, settings) {
+    if (!section || !qs('#cms-hero-title')) return;
+    if (qs('#cms-hero-badge')) qs('#cms-hero-badge').textContent = section.name || 'Distribuidor KAYO en Concepción y Biobío';
+    if (qs('#cms-hero-title')) qs('#cms-hero-title').textContent = section.title || '';
+    if (qs('#cms-hero-subtitle')) qs('#cms-hero-subtitle').textContent = section.subtitle || section.content || '';
+
+    const activeSlide = sectionItems(section).find(item => item.image_url);
+    if (activeSlide && qs('#cms-hero-background')) {
+      qs('#cms-hero-background').style.backgroundImage = `url('${activeSlide.image_url}')`;
+      qs('#cms-hero-background').style.backgroundSize = 'cover';
+      qs('#cms-hero-background').style.backgroundPosition = 'center';
+      if (activeSlide.button_label && qs('#cms-hero-cta-primary')) qs('#cms-hero-cta-primary').textContent = activeSlide.button_label;
+      if (activeSlide.button_url && qs('#cms-hero-cta-primary')) qs('#cms-hero-cta-primary').setAttribute('href', activeSlide.button_url);
+    }
+
+    const stripMount = qs('#cms-hero-strip');
+    const stripItems = sectionItems(section);
+    if (stripMount && stripItems.length) {
+      stripMount.innerHTML = stripItems.map((item, index) => `
+        <div class="strip-item">
+          <div class="strip-icon">${String(index + 1).padStart(2, '0')}</div>
+          <div>
+            <strong>${escapeHtml(item.title || '')}</strong>
+            <span>${escapeHtml(item.content || item.subtitle || '')}</span>
+          </div>
+        </div>`).join('');
+    }
+
+    injectJsonLd('cms-home-localbusiness', {
+      '@context': 'https://schema.org',
+      '@type': 'MotorcycleDealer',
+      name: settings.business_name || 'Allmate Motors',
+      url: window.location.origin + '/',
+      telephone: settings.site_phone || '',
+      email: settings.site_email || '',
+      description: section.content || section.subtitle || '',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: settings.site_address || '',
+        addressLocality: 'Coronel',
+        addressRegion: settings.site_region || 'Región del Biobío',
+        addressCountry: 'CL'
+      },
+      areaServed: ['Coronel', 'Concepción', 'Gran Concepción', settings.site_region || 'Región del Biobío'],
+      sameAs: [settings.site_instagram || ''].filter(Boolean)
+    });
+  }
+
+  function renderOffersHome(section) {
+    if (!section) return;
+    if (qs('#cms-offers-badge')) qs('#cms-offers-badge').textContent = section.name || 'Ofertas de la semana';
+    if (qs('#cms-offers-title')) qs('#cms-offers-title').textContent = section.title || '';
+    if (qs('#cms-offers-subtitle')) qs('#cms-offers-subtitle').textContent = section.subtitle || section.content || '';
+
+    const mount = qs('#offer-highlight');
+    const items = sectionItems(section);
+    if (!mount || !items.length) return;
+
+    const cards = items.map(item => {
+      const currentPrice = item.meta?.price || item.price || item.subtitle || '';
+      const oldPrice = item.meta?.old_price || item.meta?.oldPrice || '';
+      const ctaLabel = item.button_label || 'Ver oferta';
+      const ctaUrl = item.button_url || 'ofertas.html';
+      return `
+        <article class="offer-feature-card">
+          <div class="offer-feature-media ${item.image_url ? '' : 'empty'}">
+            ${item.image_url ? `<img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Oferta Allmate Motors')}" loading="lazy">` : '<span>Imagen pendiente</span>'}
+          </div>
+          <div class="offer-feature-copy">
+            <span class="offer-label">${escapeHtml(item.tag || section.name || 'Oferta de la semana')}</span>
+            <h3>${escapeHtml(item.title || '')}</h3>
+            <p>${escapeHtml(item.content || item.subtitle || '')}</p>
+            <div class="offer-prices">
+              ${currentPrice ? `<strong>${escapeHtml(currentPrice)}</strong>` : ''}
+              ${oldPrice ? `<span>${escapeHtml(oldPrice)}</span>` : ''}
+            </div>
+            <a class="btn" href="${ctaUrl}">${escapeHtml(ctaLabel)}</a>
+          </div>
+        </article>`;
+    });
+
+    mount.innerHTML = `
+      <div class="offer-highlight-shell">
+        <div class="offer-highlight-track">
+          ${[...cards, ...cards].join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderCategories(section) {
+    if (!section) return;
+    if (qs('#cms-categories-badge')) qs('#cms-categories-badge').textContent = section.name || 'Categorías';
+    if (qs('#cms-categories-title')) qs('#cms-categories-title').textContent = section.title || '';
+    if (qs('#cms-categories-subtitle')) qs('#cms-categories-subtitle').textContent = section.subtitle || section.content || '';
+
+    const mount = qs('#home-categories');
+    const items = sectionItems(section);
+    if (!mount || !items.length) return;
+
+    mount.innerHTML = items.map(item => `
+      <article class="category-card short-card">
+        ${item.image_url ? `<img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Categoría Allmate')}" loading="lazy">` : ''}
+        <div class="content">
+          ${item.tag ? `<span class="status disponible">${escapeHtml(item.tag)}</span>` : ''}
+          <h3>${escapeHtml(item.title || '')}</h3>
+          <p>${escapeHtml(item.content || item.subtitle || '')}</p>
+          ${item.button_label ? `<a class="btn" href="${item.button_url || '#'}">${escapeHtml(item.button_label)}</a>` : ''}
+        </div>
+      </article>`).join('');
+  }
+
+  function renderCarrusel(section) {
+    if (!section) return;
+    if (qs('#cms-carrusel-badge')) qs('#cms-carrusel-badge').textContent = section.name || 'Carrusel visual';
+    if (qs('#cms-carrusel-title')) qs('#cms-carrusel-title').textContent = section.title || '';
+    if (qs('#cms-carrusel-subtitle')) qs('#cms-carrusel-subtitle').textContent = section.subtitle || section.content || '';
+
+    const mount = qs('#visual-marquee');
+    const items = sectionItems(section).filter(item => item.image_url);
+    if (!mount || !items.length) return;
+
+    const loopItems = [...items, ...items];
+    mount.innerHTML = `<div class="visual-track visual-track-soft">${loopItems.map(item => `
+      <article class="visual-card visual-card-wide">
+        <img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Allmate Motors')}" loading="lazy">
+        <div class="visual-card-copy">
+          <span>${escapeHtml(item.tag || '')}</span>
+          <strong>${escapeHtml(item.title || '')}</strong>
+        </div>
+      </article>`).join('')}</div>`;
+  }
+
+  function renderAbout(section) {
+    if (!section || !qs('#cms-about-title')) return;
+    if (qs('#cms-about-badge')) qs('#cms-about-badge').textContent = section.name || 'Quiénes somos';
+    if (qs('#cms-about-title')) qs('#cms-about-title').textContent = section.title || '';
+    if (qs('#cms-about-subtitle')) qs('#cms-about-subtitle').textContent = section.subtitle || '';
+    if (qs('#cms-about-image')) {
+      const imageItem = sectionItems(section).find(item => item.image_url);
+      if (imageItem?.image_url) qs('#cms-about-image').src = imageItem.image_url;
+      if (imageItem?.image_alt) qs('#cms-about-image').alt = imageItem.image_alt;
+    }
+
+    const mount = qs('#cms-about-items');
+    const items = sectionItems(section);
+    if (mount && items.length) {
+      mount.innerHTML = items.map((item, index) => `
+        <div class="about-point">
+          <div class="icon-dot">${String(index + 1).padStart(2, '0')}</div>
+          <div>
+            <strong>${escapeHtml(item.title || '')}</strong><br>
+            ${escapeHtml(item.content || item.subtitle || '')}
+          </div>
+        </div>`).join('');
+    }
+  }
+
+  function renderContact(section, settings) {
+    if (!section || !qs('#cms-contact-title')) return;
+    if (qs('#cms-contact-badge')) qs('#cms-contact-badge').textContent = section.name || 'Contacto y ubicación';
+    if (qs('#cms-contact-title')) qs('#cms-contact-title').textContent = section.title || '';
+    if (qs('#cms-contact-subtitle')) qs('#cms-contact-subtitle').textContent = section.subtitle || section.content || '';
+
+    const rows = [];
+    const phone = settings.site_phone || settings.site_whatsapp_label || '';
+    const email = settings.site_email || '';
+    const address = settings.site_address || '';
+    const insta = settings.site_instagram_label || '@allmatemotors.cl';
+
+    if (phone) rows.push(`<div class="info-row"><div><small>WhatsApp</small><strong>${escapeHtml(phone)}</strong></div><a class="btn btn-dark" href="${settings.site_whatsapp || '#'}" target="_blank" rel="noopener">Escribir ahora</a></div>`);
+    if (email) rows.push(`<div class="info-row"><div><small>Correo</small><strong>${escapeHtml(email)}</strong></div><a class="btn btn-dark" href="mailto:${escapeHtml(email)}">Enviar correo</a></div>`);
+    if (address) rows.push(`<div class="info-row"><div><small>Dirección</small><strong>${escapeHtml(address)}</strong></div><a class="btn btn-dark" href="${settings.google_maps_link || '#'}" target="_blank" rel="noopener">Ver mapa</a></div>`);
+    rows.push(`<div class="social-row"><div class="social-group"><span class="social-icon">◎</span><div><small>Instagram</small><strong>${escapeHtml(insta)}</strong></div></div><a class="btn btn-dark" href="${settings.site_instagram || '#'}" target="_blank" rel="noopener">Seguir</a></div>`);
+    if (rows.length && qs('#cms-contact-items')) qs('#cms-contact-items').innerHTML = rows.join('');
+    if (settings.google_maps_embed && qs('#cms-contact-map')) qs('#cms-contact-map').src = settings.google_maps_embed;
   }
 
   async function fetchNewsList() {
@@ -291,6 +356,7 @@
       const flatSettings = applySettings(payload.settings || {});
       applyPageSeo(payload.page);
       renderHero(sections.hero, flatSettings);
+      renderOffersHome(sections.ofertas_home);
       renderCategories(sections.categorias);
       renderCarrusel(sections.carrusel_visual);
       renderAbout(sections.quienes_somos);
@@ -316,7 +382,7 @@
         const lead = qs('#cms-products-lead');
         if (badge) badge.textContent = intro.subtitle || intro.name || 'Catálogo';
         if (title) title.textContent = intro.title || '';
-        if (lead) lead.textContent = intro.content || '';
+        if (lead) lead.textContent = intro.content || intro.subtitle || '';
       }
 
       const repuestos = sections.repuestos;
@@ -332,6 +398,25 @@
       }
     } catch (error) {
       console.warn('CMS productos fallback activo:', error.message);
+    }
+  }
+
+  async function initOfertasCms() {
+    try {
+      const res = await fetch('/api/cms/page/ofertas');
+      if (!res.ok) return;
+      const payload = await res.json();
+      const sections = byKey(payload.sections || []);
+      applySettings(payload.settings || {});
+      applyPageSeo(payload.page);
+      const hero = sections.hero || sections.intro || sections.ofertas;
+      if (hero) {
+        if (qs('#cms-offers-page-badge')) qs('#cms-offers-page-badge').textContent = hero.name || 'Ofertas';
+        if (qs('#cms-offers-page-title')) qs('#cms-offers-page-title').textContent = hero.title || '';
+        if (qs('#cms-offers-page-lead')) qs('#cms-offers-page-lead').textContent = hero.subtitle || hero.content || '';
+      }
+    } catch (error) {
+      console.warn('CMS ofertas fallback activo:', error.message);
     }
   }
 
@@ -360,6 +445,33 @@
     }
   }
 
+  async function initContactoCms() {
+    try {
+      const res = await fetch('/api/cms/page/contacto');
+      if (!res.ok) return;
+      const payload = await res.json();
+      const sections = byKey(payload.sections || []);
+      const flatSettings = applySettings(payload.settings || {});
+      applyPageSeo(payload.page);
+      const section = sections.contacto || sections.intro || sections.form;
+      if (!section) return;
+
+      if (qs('#cms-contact-page-form-badge')) qs('#cms-contact-page-form-badge').textContent = section.name || 'Formulario de contacto';
+      if (qs('#cms-contact-page-form-title')) qs('#cms-contact-page-form-title').textContent = section.title || '';
+      if (qs('#cms-contact-page-form-lead')) qs('#cms-contact-page-form-lead').textContent = section.subtitle || section.content || '';
+      if (qs('#cms-contact-page-badge')) qs('#cms-contact-page-badge').textContent = section.name || 'Contacto y ubicación';
+      if (qs('#cms-contact-page-title')) qs('#cms-contact-page-title').textContent = section.title || '';
+      if (qs('#cms-contact-page-lead')) qs('#cms-contact-page-lead').textContent = section.subtitle || section.content || '';
+
+      if (flatSettings.google_maps_embed && qs('#cms-contact-page-map')) qs('#cms-contact-page-map').src = flatSettings.google_maps_embed;
+      if (flatSettings.site_address && qs('#cms-contact-page-address')) qs('#cms-contact-page-address').textContent = flatSettings.site_address;
+      if (flatSettings.site_email) qsa('[data-contact-email]').forEach(el => el.textContent = flatSettings.site_email);
+      if (flatSettings.site_phone) qsa('[data-whatsapp-label]').forEach(el => el.textContent = flatSettings.site_phone);
+    } catch (error) {
+      console.warn('CMS contacto fallback activo:', error.message);
+    }
+  }
+
   async function initArticleCms() {
     try {
       const settingsRes = await fetch('/api/cms/settings/public');
@@ -378,7 +490,9 @@
   document.addEventListener('DOMContentLoaded', () => {
     if (PAGE === 'home') initHomeCms();
     if (PAGE === 'productos') initProductosCms();
+    if (PAGE === 'ofertas') initOfertasCms();
     if (PAGE === 'news') initNewsCms();
+    if (PAGE === 'contacto') initContactoCms();
     if (PAGE === 'noticia') initArticleCms();
   });
 })();
