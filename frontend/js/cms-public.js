@@ -2,6 +2,14 @@
   const PAGE = document.body?.dataset?.page;
   if (!PAGE) return;
 
+  const CMS_FETCH_OPTIONS = {
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache'
+    }
+  };
+
   function qs(sel, scope = document) { return scope.querySelector(sel); }
   function qsa(sel, scope = document) { return Array.from(scope.querySelectorAll(sel)); }
   function escapeHtml(v = '') {
@@ -20,38 +28,37 @@
     let meta = document.querySelector(`meta[name="${name}"]`);
     if (!meta) {
       meta = document.createElement('meta');
-      meta.name = name;
+      meta.setAttribute('name', name);
       document.head.appendChild(meta);
     }
     meta.setAttribute('content', content);
   }
   function injectJsonLd(id, data) {
     if (!data) return;
-    let script = document.getElementById(id);
-    if (!script) {
-      script = document.createElement('script');
-      script.type = 'application/ld+json';
-      script.id = id;
-      document.head.appendChild(script);
-    }
+    const prev = document.getElementById(id);
+    if (prev) prev.remove();
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = id;
     script.textContent = JSON.stringify(data);
+    document.head.appendChild(script);
   }
   function byKey(sections) {
-    return (sections || []).reduce((acc, item) => {
-      acc[item.section_key] = item;
-      return acc;
-    }, {});
+    return Object.fromEntries((sections || []).map(s => [s.section_key, s]));
   }
-  function formatDate(date) {
-    if (!date) return '';
-    const parsed = new Date(date);
-    if (Number.isNaN(parsed.getTime())) return '';
-    return parsed.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
+  function formatDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
   }
-  function sectionItems(section) {
-    return (section?.items || [])
-      .filter(item => item.is_active)
-      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+  function activeItems(section) {
+    return (section?.items || []).filter(item => item.is_active).sort((a, b) => a.sort_order - b.sort_order);
+  }
+  async function fetchJson(url) {
+    const res = await fetch(url, CMS_FETCH_OPTIONS);
+    if (!res.ok) throw new Error(`HTTP ${res.status} en ${url}`);
+    return res.json();
   }
 
   function applyPageSeo(page) {
@@ -80,17 +87,33 @@
     qsa('[data-instagram-link]').forEach(el => { if (flat.site_instagram) el.href = flat.site_instagram; });
     qsa('[data-instagram-label]').forEach(el => { if (flat.site_instagram_label) el.textContent = flat.site_instagram_label; });
     qsa('[data-branch-name]').forEach(el => { if (flat.site_address) el.textContent = flat.site_address; });
-    qsa('[data-payment-link]').forEach(el => { if (flat.general_payment_link) el.href = flat.general_payment_link; });
     return flat;
   }
 
   function renderHero(section, settings) {
     if (!section || !qs('#cms-hero-title')) return;
-    if (qs('#cms-hero-badge')) qs('#cms-hero-badge').textContent = section.name || 'Distribuidor KAYO en Concepción y Biobío';
-    if (qs('#cms-hero-title')) qs('#cms-hero-title').textContent = section.title || '';
-    if (qs('#cms-hero-subtitle')) qs('#cms-hero-subtitle').textContent = section.subtitle || section.content || '';
+    const badge = qs('#cms-hero-badge');
+    const title = qs('#cms-hero-title');
+    const subtitle = qs('#cms-hero-subtitle');
+    if (badge) badge.textContent = section.name || badge.textContent;
+    if (title) title.textContent = section.title || title.textContent;
+    if (subtitle) subtitle.textContent = section.subtitle || section.content || subtitle.textContent;
 
-    const activeSlide = sectionItems(section).find(item => item.image_url);
+    const strip = qs('#cms-hero-strip');
+    const items = activeItems(section);
+    if (items.length && strip) {
+      strip.innerHTML = items
+        .map((item, index) => `
+          <div class="strip-item">
+            <div class="strip-icon">${escapeHtml(item.tag || String(index + 1).padStart(2, '0'))}</div>
+            <div>
+              <strong>${escapeHtml(item.title || '')}</strong>
+              <span>${escapeHtml(item.content || item.subtitle || '')}</span>
+            </div>
+          </div>`).join('');
+    }
+
+    const activeSlide = items.find(item => item.image_url);
     if (activeSlide && qs('#cms-hero-background')) {
       qs('#cms-hero-background').style.backgroundImage = `url('${activeSlide.image_url}')`;
       qs('#cms-hero-background').style.backgroundSize = 'cover';
@@ -99,24 +122,11 @@
       if (activeSlide.button_url && qs('#cms-hero-cta-primary')) qs('#cms-hero-cta-primary').setAttribute('href', activeSlide.button_url);
     }
 
-    const stripMount = qs('#cms-hero-strip');
-    const stripItems = sectionItems(section);
-    if (stripMount && stripItems.length) {
-      stripMount.innerHTML = stripItems.map((item, index) => `
-        <div class="strip-item">
-          <div class="strip-icon">${String(index + 1).padStart(2, '0')}</div>
-          <div>
-            <strong>${escapeHtml(item.title || '')}</strong>
-            <span>${escapeHtml(item.content || item.subtitle || '')}</span>
-          </div>
-        </div>`).join('');
-    }
-
     injectJsonLd('cms-home-localbusiness', {
       '@context': 'https://schema.org',
       '@type': 'MotorcycleDealer',
       name: settings.business_name || 'Allmate Motors',
-      url: window.location.origin + '/',
+      url: `${window.location.origin}/`,
       telephone: settings.site_phone || '',
       email: settings.site_email || '',
       description: section.content || section.subtitle || '',
@@ -134,56 +144,49 @@
 
   function renderOffersHome(section) {
     if (!section) return;
-    if (qs('#cms-offers-badge')) qs('#cms-offers-badge').textContent = section.name || 'Ofertas de la semana';
-    if (qs('#cms-offers-title')) qs('#cms-offers-title').textContent = section.title || '';
-    if (qs('#cms-offers-subtitle')) qs('#cms-offers-subtitle').textContent = section.subtitle || section.content || '';
+    const badge = qs('#cms-offers-badge');
+    const title = qs('#cms-offers-title');
+    const subtitle = qs('#cms-offers-subtitle');
+    if (badge) badge.textContent = section.name || badge.textContent;
+    if (title) title.textContent = section.title || title.textContent;
+    if (subtitle) subtitle.textContent = section.subtitle || section.content || subtitle.textContent;
 
     const mount = qs('#offer-highlight');
-    const items = sectionItems(section);
-    if (!mount || !items.length) return;
-
-    const cards = items.map(item => {
-      const currentPrice = item.meta?.price || item.price || item.subtitle || '';
-      const oldPrice = item.meta?.old_price || item.meta?.oldPrice || '';
-      const ctaLabel = item.button_label || 'Ver oferta';
-      const ctaUrl = item.button_url || 'ofertas.html';
-      return `
-        <article class="offer-feature-card">
-          <div class="offer-feature-media ${item.image_url ? '' : 'empty'}">
-            ${item.image_url ? `<img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Oferta Allmate Motors')}" loading="lazy">` : '<span>Imagen pendiente</span>'}
-          </div>
-          <div class="offer-feature-copy">
-            <span class="offer-label">${escapeHtml(item.tag || section.name || 'Oferta de la semana')}</span>
-            <h3>${escapeHtml(item.title || '')}</h3>
-            <p>${escapeHtml(item.content || item.subtitle || '')}</p>
-            <div class="offer-prices">
-              ${currentPrice ? `<strong>${escapeHtml(currentPrice)}</strong>` : ''}
-              ${oldPrice ? `<span>${escapeHtml(oldPrice)}</span>` : ''}
-            </div>
-            <a class="btn" href="${ctaUrl}">${escapeHtml(ctaLabel)}</a>
-          </div>
-        </article>`;
-    });
+    const items = activeItems(section);
+    if (!mount || !items.length) return; // no romper fallback estático
 
     mount.innerHTML = `
       <div class="offer-highlight-shell">
         <div class="offer-highlight-track">
-          ${[...cards, ...cards].join('')}
+          ${[...items, ...items, ...items].map(item => `
+            <article class="offer-feature-card">
+              <div class="offer-feature-media ${item.image_url ? '' : 'empty'}">
+                ${item.image_url ? `<img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Oferta KAYO')}" loading="lazy">` : '<span>Imagen pendiente</span>'}
+              </div>
+              <div class="offer-feature-copy">
+                <span class="offer-label">${escapeHtml(item.tag || section.name || 'Oferta')}</span>
+                <h3>${escapeHtml(item.title || '')}</h3>
+                <p>${escapeHtml(item.content || item.subtitle || '')}</p>
+                ${item.button_label ? `<a class="btn" href="${item.button_url || '#'}">${escapeHtml(item.button_label)}</a>` : ''}
+              </div>
+            </article>`).join('')}
         </div>
       </div>`;
   }
 
   function renderCategories(section) {
-    if (!section) return;
-    if (qs('#cms-categories-badge')) qs('#cms-categories-badge').textContent = section.name || 'Categorías';
-    if (qs('#cms-categories-title')) qs('#cms-categories-title').textContent = section.title || '';
-    if (qs('#cms-categories-subtitle')) qs('#cms-categories-subtitle').textContent = section.subtitle || section.content || '';
+    if (!section || !qs('#home-categories')) return;
+    const badge = qs('#cms-categories-badge');
+    const title = qs('#cms-categories-title');
+    const subtitle = qs('#cms-categories-subtitle');
+    if (badge) badge.textContent = section.name || badge.textContent;
+    if (title) title.textContent = section.title || title.textContent;
+    if (subtitle) subtitle.textContent = section.subtitle || section.content || subtitle.textContent;
 
-    const mount = qs('#home-categories');
-    const items = sectionItems(section);
-    if (!mount || !items.length) return;
+    const items = activeItems(section);
+    if (!items.length) return; // no romper fallback estático
 
-    mount.innerHTML = items.map(item => `
+    qs('#home-categories').innerHTML = items.map(item => `
       <article class="category-card short-card">
         ${item.image_url ? `<img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Categoría Allmate')}" loading="lazy">` : ''}
         <div class="content">
@@ -196,130 +199,136 @@
   }
 
   function renderCarrusel(section) {
-    if (!section) return;
-    if (qs('#cms-carrusel-badge')) qs('#cms-carrusel-badge').textContent = section.name || 'Carrusel visual';
-    if (qs('#cms-carrusel-title')) qs('#cms-carrusel-title').textContent = section.title || '';
-    if (qs('#cms-carrusel-subtitle')) qs('#cms-carrusel-subtitle').textContent = section.subtitle || section.content || '';
+    if (!section || !qs('#visual-marquee')) return;
+    const badge = qs('#cms-carrusel-badge');
+    const title = qs('#cms-carrusel-title');
+    const subtitle = qs('#cms-carrusel-subtitle');
+    if (badge) badge.textContent = section.name || badge.textContent;
+    if (title) title.textContent = section.title || title.textContent;
+    if (subtitle) subtitle.textContent = section.subtitle || section.content || subtitle.textContent;
 
-    const mount = qs('#visual-marquee');
-    const items = sectionItems(section).filter(item => item.image_url);
-    if (!mount || !items.length) return;
+    const items = activeItems(section).filter(item => item.image_url);
+    if (!items.length) return; // no romper fallback estático
 
-    const loopItems = [...items, ...items];
-    mount.innerHTML = `<div class="visual-track visual-track-soft">${loopItems.map(item => `
-      <article class="visual-card visual-card-wide">
-        <img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Allmate Motors')}" loading="lazy">
-        <div class="visual-card-copy">
-          <span>${escapeHtml(item.tag || '')}</span>
-          <strong>${escapeHtml(item.title || '')}</strong>
-        </div>
-      </article>`).join('')}</div>`;
+    qs('#visual-marquee').innerHTML = `
+      <div class="visual-track visual-track-soft">
+        ${[...items, ...items].map(item => `
+          <article class="visual-card visual-card-wide">
+            <img src="${item.image_url}" alt="${escapeHtml(item.image_alt || item.title || 'Allmate Motors')}" loading="lazy">
+            <div class="visual-card-copy"><span>${escapeHtml(item.tag || '')}</span><strong>${escapeHtml(item.title || '')}</strong></div>
+          </article>`).join('')}
+      </div>`;
   }
 
   function renderAbout(section) {
     if (!section || !qs('#cms-about-title')) return;
-    if (qs('#cms-about-badge')) qs('#cms-about-badge').textContent = section.name || 'Quiénes somos';
-    if (qs('#cms-about-title')) qs('#cms-about-title').textContent = section.title || '';
-    if (qs('#cms-about-subtitle')) qs('#cms-about-subtitle').textContent = section.subtitle || '';
-    if (qs('#cms-about-image')) {
-      const imageItem = sectionItems(section).find(item => item.image_url);
-      if (imageItem?.image_url) qs('#cms-about-image').src = imageItem.image_url;
-      if (imageItem?.image_alt) qs('#cms-about-image').alt = imageItem.image_alt;
-    }
+    const badge = qs('#cms-about-badge');
+    const title = qs('#cms-about-title');
+    const subtitle = qs('#cms-about-subtitle');
+    const image = qs('#cms-about-image');
+    if (badge) badge.textContent = section.name || badge.textContent;
+    if (title) title.textContent = section.title || title.textContent;
+    if (subtitle && (section.subtitle || section.content)) subtitle.textContent = section.subtitle || section.content || subtitle.textContent;
 
-    const mount = qs('#cms-about-items');
-    const items = sectionItems(section);
-    if (mount && items.length) {
-      mount.innerHTML = items.map((item, index) => `
+    const items = activeItems(section);
+    if (items.length && qs('#cms-about-items')) {
+      qs('#cms-about-items').innerHTML = items.map((item, index) => `
         <div class="about-point">
-          <div class="icon-dot">${String(index + 1).padStart(2, '0')}</div>
-          <div>
-            <strong>${escapeHtml(item.title || '')}</strong><br>
-            ${escapeHtml(item.content || item.subtitle || '')}
-          </div>
+          <div class="icon-dot">${escapeHtml(item.tag || String(index + 1).padStart(2, '0'))}</div>
+          <div><strong>${escapeHtml(item.title || '')}</strong><br>${escapeHtml(item.content || item.subtitle || '')}</div>
         </div>`).join('');
     }
+    const imageItem = items.find(item => item.image_url);
+    if (image && imageItem?.image_url) image.src = imageItem.image_url;
   }
 
-  function renderContact(section, settings) {
-    if (!section || !qs('#cms-contact-title')) return;
-    if (qs('#cms-contact-badge')) qs('#cms-contact-badge').textContent = section.name || 'Contacto y ubicación';
-    if (qs('#cms-contact-title')) qs('#cms-contact-title').textContent = section.title || '';
-    if (qs('#cms-contact-subtitle')) qs('#cms-contact-subtitle').textContent = section.subtitle || section.content || '';
+  function renderContactBlock(badgeSel, titleSel, subtitleSel, section, settings, itemsSel, mapSel, mapLinkSel) {
+    const badge = qs(badgeSel);
+    const title = qs(titleSel);
+    const subtitle = qs(subtitleSel);
+    if (section) {
+      if (badge) badge.textContent = section.name || badge.textContent;
+      if (title) title.textContent = section.title || title.textContent;
+      if (subtitle) subtitle.textContent = section.subtitle || section.content || subtitle.textContent;
+    }
 
-    const rows = [];
     const phone = settings.site_phone || settings.site_whatsapp_label || '';
     const email = settings.site_email || '';
     const address = settings.site_address || '';
     const insta = settings.site_instagram_label || '@allmatemotors.cl';
+    const itemsMount = qs(itemsSel);
+    if (itemsMount && (phone || email || address || insta)) {
+      itemsMount.innerHTML = `
+        <div class="info-row">
+          <div><small>WhatsApp</small><strong>${escapeHtml(phone)}</strong></div>
+          <a class="btn btn-dark" href="${settings.site_whatsapp || '#'}" target="_blank" rel="noopener">Escribir ahora</a>
+        </div>
+        <div class="info-row">
+          <div><small>Correo</small><strong>${escapeHtml(email)}</strong></div>
+          <a class="btn btn-dark" href="mailto:${escapeHtml(email)}">Enviar correo</a>
+        </div>
+        <div class="info-row">
+          <div><small>Dirección</small><strong>${escapeHtml(address)}</strong></div>
+          <a class="btn btn-dark" href="${settings.google_maps_link || '#'}" target="_blank" rel="noopener">Ver mapa</a>
+        </div>
+        <div class="social-row">
+          <div class="social-group"><span class="social-icon">🟢</span><div><small>WhatsApp</small><strong>${escapeHtml(phone)}</strong></div></div>
+          <a class="btn btn-dark" href="${settings.site_whatsapp || '#'}" target="_blank" rel="noopener">Abrir</a>
+        </div>
+        <div class="social-row">
+          <div class="social-group"><span class="social-icon">◎</span><div><small>Instagram</small><strong>${escapeHtml(insta)}</strong></div></div>
+          <a class="btn btn-dark" href="${settings.site_instagram || '#'}" target="_blank" rel="noopener">Seguir</a>
+        </div>`;
+    }
+    const map = qs(mapSel);
+    if (map && settings.google_maps_embed) map.src = settings.google_maps_embed;
+    const mapLink = qs(mapLinkSel);
+    if (mapLink && settings.google_maps_link) mapLink.href = settings.google_maps_link;
+  }
 
-    if (phone) rows.push(`<div class="info-row"><div><small>WhatsApp</small><strong>${escapeHtml(phone)}</strong></div><a class="btn btn-dark" href="${settings.site_whatsapp || '#'}" target="_blank" rel="noopener">Escribir ahora</a></div>`);
-    if (email) rows.push(`<div class="info-row"><div><small>Correo</small><strong>${escapeHtml(email)}</strong></div><a class="btn btn-dark" href="mailto:${escapeHtml(email)}">Enviar correo</a></div>`);
-    if (address) rows.push(`<div class="info-row"><div><small>Dirección</small><strong>${escapeHtml(address)}</strong></div><a class="btn btn-dark" href="${settings.google_maps_link || '#'}" target="_blank" rel="noopener">Ver mapa</a></div>`);
-    rows.push(`<div class="social-row"><div class="social-group"><span class="social-icon">◎</span><div><small>Instagram</small><strong>${escapeHtml(insta)}</strong></div></div><a class="btn btn-dark" href="${settings.site_instagram || '#'}" target="_blank" rel="noopener">Seguir</a></div>`);
-    if (rows.length && qs('#cms-contact-items')) qs('#cms-contact-items').innerHTML = rows.join('');
-    if (settings.google_maps_embed && qs('#cms-contact-map')) qs('#cms-contact-map').src = settings.google_maps_embed;
+  function renderContact(section, settings) {
+    renderContactBlock('#cms-contact-badge', '#cms-contact-title', '#cms-contact-subtitle', section, settings, '#cms-contact-items', '#cms-contact-map');
   }
 
   async function fetchNewsList() {
-    const res = await fetch('/api/news');
-    if (!res.ok) throw new Error('No se pudo cargar noticias');
-    return res.json();
+    return fetchJson('/api/news');
+  }
+
+  function renderNewsCards(items) {
+    const mount = qs('#news-list');
+    if (!mount) return;
+    mount.innerHTML = items.map(item => `
+      <article class="news-card">
+        <a href="noticia.html?slug=${encodeURIComponent(item.slug)}" class="news-card-link">
+          ${item.image_url ? `<img class="news-image" src="${item.image_url}" alt="${escapeHtml(item.title)}" loading="lazy">` : ''}
+          <div class="card-body">
+            <small>${formatDate(item.published_at)}</small>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p>${escapeHtml(item.excerpt || '')}</p>
+            <span class="text-link">Leer noticia completa</span>
+          </div>
+        </a>
+      </article>`).join('');
   }
 
   async function fetchNewsDetail(slug) {
-    const res = await fetch(`/api/news/${encodeURIComponent(slug)}`);
-    if (!res.ok) throw new Error('No se pudo cargar la noticia');
-    return res.json();
-  }
-
-  function renderNewsCards(newsItems) {
-    const list = qs('#news-list');
-    if (!list) return;
-    if (!newsItems.length) {
-      list.innerHTML = '<div class="empty-state">Aún no hay noticias publicadas.</div>';
-      return;
-    }
-    list.innerHTML = newsItems.map(item => `
-      <article class="news-card">
-        <a class="news-card-media" href="noticia.html?slug=${encodeURIComponent(item.slug)}">
-          <img src="${item.image_url || 'images/hero/hero-1.jpeg'}" alt="${escapeHtml(item.title)}" loading="lazy">
-        </a>
-        <div class="news-card-body">
-          <span class="news-date">${escapeHtml(formatDate(item.published_at))}</span>
-          <h3><a href="noticia.html?slug=${encodeURIComponent(item.slug)}">${escapeHtml(item.title)}</a></h3>
-          <p>${escapeHtml(item.excerpt || '')}</p>
-          <a class="btn btn-dark" href="noticia.html?slug=${encodeURIComponent(item.slug)}">Leer noticia</a>
-        </div>
-      </article>`).join('');
+    return fetchJson(`/api/news/${encodeURIComponent(slug)}`);
   }
 
   function renderNewsDetail(article) {
     const root = qs('#news-detail');
-    if (!root) return;
+    if (!root || !article) return;
     root.innerHTML = `
-      <div class="article-main">
-        <span class="badge">News</span>
-        <p class="article-date">${escapeHtml(formatDate(article.published_at))}</p>
+      <div class="article-hero">${article.image_url ? `<img src="${article.image_url}" alt="${escapeHtml(article.title)}" loading="eager">` : ''}</div>
+      <article class="article-main article-box">
+        <div class="article-meta">${formatDate(article.published_at)}</div>
         <h1 class="article-title">${escapeHtml(article.title)}</h1>
-        <p class="article-excerpt">${escapeHtml(article.excerpt || '')}</p>
-        <img class="article-cover" src="${article.image_url || 'images/hero/hero-1.jpeg'}" alt="${escapeHtml(article.title)}">
-        <div class="article-content rich-content">${article.content || ''}</div>
-      </div>
-      <aside class="article-aside">
-        <div class="article-card">
-          <h3>Operación local</h3>
-          <p>Noticias pensadas para reforzar marca, catálogo KAYO, cobertura en Coronel, Concepción y la Región del Biobío.</p>
-        </div>
-        <div class="article-card">
-          <h3>Volver al listado</h3>
-          <a class="btn btn-full" href="news.html">Ver todas las noticias</a>
-        </div>
-      </aside>`;
+        <div class="article-body">${article.content || ''}</div>
+      </article>`;
 
     document.title = `${article.title} | Allmate Motors`;
-    ensureMeta('description', article.excerpt || article.title);
-    injectJsonLd('cms-news-article', {
+    ensureMeta('description', article.excerpt || '');
+    injectJsonLd('cms-article-jsonld', {
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: article.title,
@@ -349,14 +358,12 @@
 
   async function initHomeCms() {
     try {
-      const res = await fetch('/api/cms/page/index');
-      if (!res.ok) return;
-      const payload = await res.json();
+      const payload = await fetchJson('/api/cms/page/index');
       const sections = byKey(payload.sections || []);
       const flatSettings = applySettings(payload.settings || {});
       applyPageSeo(payload.page);
       renderHero(sections.hero, flatSettings);
-      renderOffersHome(sections.ofertas_home);
+      renderOffersHome(sections.ofertas_home || sections.ofertas_destacadas || sections.ofertas);
       renderCategories(sections.categorias);
       renderCarrusel(sections.carrusel_visual);
       renderAbout(sections.quienes_somos);
@@ -368,9 +375,7 @@
 
   async function initProductosCms() {
     try {
-      const res = await fetch('/api/cms/page/productos');
-      if (!res.ok) return;
-      const payload = await res.json();
+      const payload = await fetchJson('/api/cms/page/productos');
       const sections = byKey(payload.sections || []);
       applySettings(payload.settings || {});
       applyPageSeo(payload.page);
@@ -380,9 +385,9 @@
         const badge = qs('#cms-products-badge');
         const title = qs('#cms-products-title');
         const lead = qs('#cms-products-lead');
-        if (badge) badge.textContent = intro.subtitle || intro.name || 'Catálogo';
-        if (title) title.textContent = intro.title || '';
-        if (lead) lead.textContent = intro.content || intro.subtitle || '';
+        if (badge) badge.textContent = intro.subtitle || intro.name || badge.textContent;
+        if (title) title.textContent = intro.title || title.textContent;
+        if (lead) lead.textContent = intro.content || intro.subtitle || lead.textContent;
       }
 
       const repuestos = sections.repuestos;
@@ -391,10 +396,10 @@
         const title = qs('#cms-repuestos-title');
         const lead = qs('#cms-repuestos-lead');
         const content = qs('#cms-repuestos-content');
-        if (badge) badge.textContent = repuestos.name || 'Repuestos y cotización';
-        if (title) title.textContent = repuestos.title || '';
-        if (lead) lead.textContent = repuestos.subtitle || '';
-        if (content) content.innerHTML = repuestos.content || '';
+        if (badge) badge.textContent = repuestos.name || badge.textContent;
+        if (title) title.textContent = repuestos.title || title.textContent;
+        if (lead) lead.textContent = repuestos.subtitle || lead.textContent;
+        if (content && repuestos.content) content.innerHTML = repuestos.content;
       }
     } catch (error) {
       console.warn('CMS productos fallback activo:', error.message);
@@ -403,17 +408,18 @@
 
   async function initOfertasCms() {
     try {
-      const res = await fetch('/api/cms/page/ofertas');
-      if (!res.ok) return;
-      const payload = await res.json();
+      const payload = await fetchJson('/api/cms/page/ofertas');
       const sections = byKey(payload.sections || []);
       applySettings(payload.settings || {});
       applyPageSeo(payload.page);
-      const hero = sections.hero || sections.intro || sections.ofertas;
-      if (hero) {
-        if (qs('#cms-offers-page-badge')) qs('#cms-offers-page-badge').textContent = hero.name || 'Ofertas';
-        if (qs('#cms-offers-page-title')) qs('#cms-offers-page-title').textContent = hero.title || '';
-        if (qs('#cms-offers-page-lead')) qs('#cms-offers-page-lead').textContent = hero.subtitle || hero.content || '';
+      const intro = sections.hero || sections.intro || sections.ofertas;
+      if (intro) {
+        const badge = qs('#cms-offers-page-badge');
+        const title = qs('#cms-offers-page-title');
+        const lead = qs('#cms-offers-page-lead');
+        if (badge) badge.textContent = intro.name || badge.textContent;
+        if (title) title.textContent = intro.title || title.textContent;
+        if (lead) lead.textContent = intro.subtitle || intro.content || lead.textContent;
       }
     } catch (error) {
       console.warn('CMS ofertas fallback activo:', error.message);
@@ -422,21 +428,18 @@
 
   async function initNewsCms() {
     try {
-      const cmsRes = await fetch('/api/cms/page/news');
-      if (cmsRes.ok) {
-        const payload = await cmsRes.json();
-        const sections = byKey(payload.sections || []);
-        applySettings(payload.settings || {});
-        applyPageSeo(payload.page);
-        const intro = sections.intro || sections.listado || sections.news_intro;
-        if (intro) {
-          const badge = qs('#cms-news-badge');
-          const title = qs('#cms-news-title');
-          const lead = qs('#cms-news-lead');
-          if (badge) badge.textContent = intro.subtitle || intro.name || 'News';
-          if (title) title.textContent = intro.title || '';
-          if (lead) lead.textContent = intro.content || intro.subtitle || '';
-        }
+      const payload = await fetchJson('/api/cms/page/news');
+      const sections = byKey(payload.sections || []);
+      applySettings(payload.settings || {});
+      applyPageSeo(payload.page);
+      const intro = sections.intro || sections.listado || sections.news_intro || sections.hero;
+      if (intro) {
+        const badge = qs('#cms-news-badge');
+        const title = qs('#cms-news-title');
+        const lead = qs('#cms-news-lead');
+        if (badge) badge.textContent = intro.subtitle || intro.name || badge.textContent;
+        if (title) title.textContent = intro.title || title.textContent;
+        if (lead) lead.textContent = intro.content || intro.subtitle || lead.textContent;
       }
       const items = await fetchNewsList();
       renderNewsCards(items);
@@ -447,26 +450,12 @@
 
   async function initContactoCms() {
     try {
-      const res = await fetch('/api/cms/page/contacto');
-      if (!res.ok) return;
-      const payload = await res.json();
+      const payload = await fetchJson('/api/cms/page/contacto');
       const sections = byKey(payload.sections || []);
       const flatSettings = applySettings(payload.settings || {});
       applyPageSeo(payload.page);
-      const section = sections.contacto || sections.intro || sections.form;
-      if (!section) return;
-
-      if (qs('#cms-contact-page-form-badge')) qs('#cms-contact-page-form-badge').textContent = section.name || 'Formulario de contacto';
-      if (qs('#cms-contact-page-form-title')) qs('#cms-contact-page-form-title').textContent = section.title || '';
-      if (qs('#cms-contact-page-form-lead')) qs('#cms-contact-page-form-lead').textContent = section.subtitle || section.content || '';
-      if (qs('#cms-contact-page-badge')) qs('#cms-contact-page-badge').textContent = section.name || 'Contacto y ubicación';
-      if (qs('#cms-contact-page-title')) qs('#cms-contact-page-title').textContent = section.title || '';
-      if (qs('#cms-contact-page-lead')) qs('#cms-contact-page-lead').textContent = section.subtitle || section.content || '';
-
-      if (flatSettings.google_maps_embed && qs('#cms-contact-page-map')) qs('#cms-contact-page-map').src = flatSettings.google_maps_embed;
-      if (flatSettings.site_address && qs('#cms-contact-page-address')) qs('#cms-contact-page-address').textContent = flatSettings.site_address;
-      if (flatSettings.site_email) qsa('[data-contact-email]').forEach(el => el.textContent = flatSettings.site_email);
-      if (flatSettings.site_phone) qsa('[data-whatsapp-label]').forEach(el => el.textContent = flatSettings.site_phone);
+      const contact = sections.contacto || sections.form || sections.hero || sections.intro;
+      renderContactBlock('#cms-contact-page-badge', '#cms-contact-page-title', '#cms-contact-page-lead', contact, flatSettings, '#cms-contact-page-items', '#cms-contact-page-map', '#cms-contact-page-map-link');
     } catch (error) {
       console.warn('CMS contacto fallback activo:', error.message);
     }
@@ -474,8 +463,8 @@
 
   async function initArticleCms() {
     try {
-      const settingsRes = await fetch('/api/cms/settings/public');
-      if (settingsRes.ok) applySettings(await settingsRes.json());
+      const settings = await fetchJson('/api/cms/settings/public');
+      applySettings(settings);
       const slug = new URLSearchParams(window.location.search).get('slug');
       if (!slug) return;
       const article = await fetchNewsDetail(slug);
